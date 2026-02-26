@@ -2,7 +2,7 @@
 
 ## Description
 
-FIRSTON is a legacy Java Enterprise application. The project is stored as an archive (`FIRSTON.zip`) and contains the Eclipse workspace metadata.
+FIRSTON is a legacy Java Enterprise application containing the Eclipse workspace with source code and project metadata.
 
 ## Prerequisites
 
@@ -12,13 +12,12 @@ FIRSTON is a legacy Java Enterprise application. The project is stored as an arc
 
 ## How to Run
 
-1. Extract `FIRSTON.zip` to a local directory.
+1. Clone this repository.
 2. Open Eclipse IDE.
 3. Go to **File > Import > Existing Projects into Workspace**.
-4. Select the extracted directory.
+4. Select the cloned directory.
 5. Build and run the project from Eclipse.
 
 ## Notes
 
-- This is a legacy project preserved as an archive.
-- Refer to the original project documentation within the ZIP file for detailed setup instructions.
+- This is a legacy project preserved for reference.
