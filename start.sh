@@ -141,6 +141,17 @@ wait_svc messaging    3006
 wait_svc sentiment    3007
 wait_svc billing      3008
 wait_svc notification 3009
+wait_svc bff          4000
+
+# ── 9. Wait: Frontend (Vite) ─────────────────────────────────
+echo ""
+log "Waiting for frontend..."
+elapsed=0
+until curl -sf http://localhost:3000 &>/dev/null 2>&1; do
+  sleep 2; elapsed=$((elapsed+2)); printf "    ."
+  if [ $elapsed -ge 60 ]; then echo; warn "Frontend still starting — check: $DC logs frontend"; break; fi
+done
+echo; ok "Frontend ready  :3000"
 
 # ── Done ─────────────────────────────────────────────────────
 echo ""
@@ -148,11 +159,13 @@ echo -e "${BOLD}${CYAN}═══════════════════
 echo -e "${BOLD}  🚀  FirstOn CRM is running!${NC}"
 echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════════${NC}"
 echo ""
-echo -e "  ${GREEN}→${NC} API Gateway    ${BOLD}http://localhost:8080${NC}"
-echo -e "  ${GREEN}→${NC} Email inbox    ${BOLD}http://localhost:8025${NC}   (Mailhog)"
-echo -e "  ${GREEN}→${NC} MySQL          ${BOLD}localhost:3306${NC}          (firston / firstonpass)"
-echo -e "  ${GREEN}→${NC} Redis          ${BOLD}localhost:6379${NC}"
-echo -e "  ${GREEN}→${NC} LocalStack     ${BOLD}http://localhost:4566${NC}"
+echo -e "  ${GREEN}→${NC} ${BOLD}App (frontend)  ${BOLD}http://localhost:3000${NC}"
+echo -e "  ${GREEN}→${NC} BFF / API       ${BOLD}http://localhost:4000${NC}"
+echo -e "  ${GREEN}→${NC} API Gateway     ${BOLD}http://localhost:8080${NC}"
+echo -e "  ${GREEN}→${NC} Email inbox     ${BOLD}http://localhost:8025${NC}   (Mailhog)"
+echo -e "  ${GREEN}→${NC} MySQL           ${BOLD}localhost:3306${NC}          (firston / firstonpass)"
+echo -e "  ${GREEN}→${NC} Redis           ${BOLD}localhost:6379${NC}"
+echo -e "  ${GREEN}→${NC} LocalStack      ${BOLD}http://localhost:4566${NC}"
 echo ""
 echo -e "  ${BOLD}Dev login (no OAuth needed):${NC}"
 echo -e "  ${CYAN}curl -s -X POST http://localhost:3001/auth/dev-login \\"
@@ -164,5 +177,6 @@ echo -e "  ${YELLOW}bash stop.sh${NC}        stop containers, keep data"
 echo -e "  ${YELLOW}bash reset.sh${NC}       wipe data + restart clean"
 echo -e "  ${YELLOW}bash status.sh${NC}      live health dashboard"
 echo -e "  ${YELLOW}bash smoke-test.sh${NC}  full API test suite"
-echo -e "  ${YELLOW}$DC logs -f auth${NC}   tail a service log"
+echo -e "  ${YELLOW}$DC logs -f frontend${NC}  tail frontend log"
+echo -e "  ${YELLOW}$DC logs -f bff${NC}       tail BFF log"
 echo ""

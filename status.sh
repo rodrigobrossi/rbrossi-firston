@@ -12,12 +12,11 @@ echo -e "${BOLD}  FirstOn CRM — Status${NC}"
 echo -e "${BOLD}${CYAN}══════════════════════════════════════════════════${NC}\n"
 
 echo -e "${BOLD}Containers:${NC}"
-$DC ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | tail -n +2 | \
-  while IFS= read -r line; do
-    echo "$line" | grep -q "Up" \
-      && echo -e "  ${GREEN}●${NC} $line" \
-      || echo -e "  ${RED}●${NC} $line"
-  done
+while IFS= read -r line; do
+  echo "$line" | grep -q "running" \
+    && echo -e "  ${GREEN}●${NC} $line" \
+    || echo -e "  ${RED}●${NC} $line"
+done < <($DC ps 2>/dev/null | tail -n +2) || true
 
 echo -e "\n${BOLD}Service health:${NC}"
 chk() {
@@ -26,6 +25,8 @@ chk() {
     && echo -e "  ${GREEN}✅${NC}  ${BOLD}${label}${NC}  ${DIM}${url}${NC}" \
     || echo -e "  ${RED}❌${NC}  ${BOLD}${label}${NC}  ${DIM}${url}${NC}"
 }
+chk "frontend"      "http://localhost:3000"
+chk "bff"           "http://localhost:4000/health"
 chk "gateway"       "http://localhost:8080/health"
 chk "auth"          "http://localhost:3001/health"
 chk "contact"       "http://localhost:3002/health"
@@ -40,7 +41,9 @@ chk "localstack"    "http://localhost:4566/_localstack/health"
 chk "mailhog"       "http://localhost:8025"
 
 echo -e "\n${BOLD}Access:${NC}"
-echo -e "  ${CYAN}→${NC} API         http://localhost:8080"
+echo -e "  ${CYAN}→${NC} App         http://localhost:3000"
+echo -e "  ${CYAN}→${NC} BFF / API   http://localhost:4000"
+echo -e "  ${CYAN}→${NC} Gateway     http://localhost:8080"
 echo -e "  ${CYAN}→${NC} Emails      http://localhost:8025"
 echo -e "  ${CYAN}→${NC} MySQL       localhost:3306  (firston / firstonpass)"
 echo -e "  ${CYAN}→${NC} Redis       localhost:6379"

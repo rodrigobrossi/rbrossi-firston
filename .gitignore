@@ -7,3 +7,6 @@
 # Environment
 .env
 node_modules/
+coverage/
+*.lock
+.env.local

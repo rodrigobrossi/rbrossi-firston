@@ -8,7 +8,18 @@ const rateLimit  = require('express-rate-limit');
 const morgan     = require('morgan');
 const jwt        = require('jsonwebtoken');
 const { v4: uuid } = require('uuid');
+const axios      = require('axios');
+const multer     = require('multer');
+const FormData   = require('form-data');
 const cb         = require('./circuitBreaker');
+
+// multer instance for photo uploads — memory storage, 5 MB, images only
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_, file, done) =>
+    file.mimetype.startsWith('image/') ? done(null, true) : done(new Error('Images only')),
+});
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -120,6 +131,30 @@ app.post('/api/contacts/import', (req, res) => proxy('contact', req, res, { path
 app.get('/api/contacts/:id',     (req, res) => proxy('contact', req, res, { path: `/contacts/${req.params.id}` }));
 app.patch('/api/contacts/:id',   (req, res) => proxy('contact', req, res, { path: `/contacts/${req.params.id}` }));
 app.delete('/api/contacts/:id',  (req, res) => proxy('contact', req, res, { path: `/contacts/${req.params.id}` }));
+
+// Photo upload: multipart/form-data → forward to contact service via FormData
+// Bypasses circuit breaker for binary streaming (axios direct call)
+app.post('/api/contacts/:id/photo', requireAuth, photoUpload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'photo file required (field: photo)' });
+  const form = new FormData();
+  form.append('photo', req.file.buffer, {
+    filename:    req.file.originalname || 'photo.jpg',
+    contentType: req.file.mimetype,
+  });
+  try {
+    const { data } = await axios.post(
+      `${SVC.contact}/contacts/${req.params.id}/photo`,
+      form,
+      {
+        headers: { 'x-user-id': req.userId, 'x-request-id': uuid(), ...form.getHeaders() },
+        maxBodyLength: 6 * 1024 * 1024,
+      }
+    );
+    res.json(data);
+  } catch (err) {
+    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+  }
+});
 
 // ── Calendar ──────────────────────────────────────────────────
 app.get('/api/events',          (req, res) => proxy('calendar', req, res, { path: '/events' }));

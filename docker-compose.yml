@@ -38,7 +38,7 @@ x-node-base: &node-base
     USE_AWS_SECRETS: "false"
     PIX_KEY_LOCAL_DEV: "000.000.000-00"
     PLAN_PRICE_BRL: "39.90"
-    ENCRYPTION_KEY: "6c6f63616c2d6165732d3235362d6b65792d666f722d6465762d6f6e6c7921"
+    ENCRYPTION_KEY: "6c6f63616c2d6165732d3235362d6b65792d666f722d6465762d6f6e6c792121"
     JWT_SECRET: "local-jwt-secret-change-in-prod-minimum-64-chars-random-string!!"
     JWT_EXPIRES_IN: 15m
     REFRESH_EXPIRES_IN: 7d
@@ -166,6 +166,9 @@ services:
     environment:
       <<: *base-env
       PORT: 3002
+      # Browser-reachable S3 URL (LocalStack on host port 4566)
+      # In prod: leave empty — real AWS virtual-hosted URLs are used automatically
+      S3_PUBLIC_ENDPOINT: "http://localhost:4566"
     volumes:
       - ./crm/services/contact:/app
       - /app/node_modules
@@ -290,6 +293,50 @@ services:
     depends_on:
       mysql:   { condition: service_healthy }
       mailhog: { condition: service_started }
+
+  bff:
+    <<: *node-base
+    build:
+      context: ./crm/services/bff
+      dockerfile: Dockerfile.dev
+    container_name: crm-bff
+    ports: ["4000:4000"]
+    environment:
+      <<: *base-env
+      PORT: 4000
+      AUTH_SERVICE_URL:         http://auth:3001
+      CONTACT_SERVICE_URL:      http://contact:3002
+      CALENDAR_SERVICE_URL:     http://calendar:3003
+      PIPELINE_SERVICE_URL:     http://pipeline:3004
+      CONTRACT_SERVICE_URL:     http://contract:3005
+      MESSAGING_SERVICE_URL:    http://messaging:3006
+      SENTIMENT_SERVICE_URL:    http://sentiment:3007
+      BILLING_SERVICE_URL:      http://billing:3008
+      NOTIFICATION_SERVICE_URL: http://notification:3009
+    volumes:
+      - ./crm/services/bff:/app
+      - /app/node_modules
+    depends_on:
+      - auth
+      - contact
+      - calendar
+      - pipeline
+
+  frontend:
+    <<: *node-base
+    build:
+      context: ./crm/frontend
+      dockerfile: Dockerfile.dev
+    container_name: crm-frontend
+    ports: ["3000:3000"]
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:4000
+    volumes:
+      - ./crm/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - bff
 
   # ── API GATEWAY ─────────────────────────────────────────────
   gateway:

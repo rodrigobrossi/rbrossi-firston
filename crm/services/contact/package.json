@@ -1,20 +1,27 @@
 {
   "name": "@firston/contact-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon --watch src src/index.js"
+    "dev": "nodemon --watch src src/index.js",
+    "test": "node --test tests/crud.test.js",
+    "test:coverage": "c8 --include=src/index.js --reporter=text --reporter=lcov node --test tests/crud.test.js"
   },
   "dependencies": {
-    "express": "latest",
-    "mysql2": "latest",
+    "@aws-sdk/client-s3": "^3.1009.0",
     "cors": "latest",
-    "helmet": "latest",
     "dotenv": "latest",
+    "express": "latest",
+    "helmet": "latest",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "latest",
     "uuid": "latest"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "c8": "^11.0.0",
+    "form-data": "^4.0.5",
+    "nodemon": "^3.0.3",
+    "supertest": "^7.2.2"
   }
 }
