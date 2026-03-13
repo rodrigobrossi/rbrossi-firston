@@ -1,0 +1,313 @@
+# =============================================================
+#  FirstOn CRM — docker-compose.yml
+#  Lives at the REPO ROOT alongside your legacy code.
+#  All CRM source lives under ./crm/
+#
+#  Start:  bash crm/start.sh
+#  Stop:   bash crm/stop.sh
+#  Status: bash crm/status.sh
+# =============================================================
+
+version: "3.9"
+
+networks:
+  firston:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  localstack_data:
+
+# Shared base for all Node.js microservices
+x-node-base: &node-base
+  restart: unless-stopped
+  networks: [firston]
+  environment: &base-env
+    NODE_ENV: development
+    DB_HOST: mysql
+    DB_PORT: 3306
+    DB_NAME: firston_crm
+    DB_USER: firston
+    DB_PASS: firstonpass
+    REDIS_URL: redis://redis:6379
+    AWS_ENDPOINT_URL: http://localstack:4566
+    AWS_REGION: sa-east-1
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    USE_AWS_SECRETS: "false"
+    PIX_KEY_LOCAL_DEV: "000.000.000-00"
+    PLAN_PRICE_BRL: "39.90"
+    ENCRYPTION_KEY: "6c6f63616c2d6165732d3235362d6b65792d666f722d6465762d6f6e6c7921"
+    JWT_SECRET: "local-jwt-secret-change-in-prod-minimum-64-chars-random-string!!"
+    JWT_EXPIRES_IN: 15m
+    REFRESH_EXPIRES_IN: 7d
+    FRONTEND_URL: http://localhost:3000
+    API_URL: http://localhost:8080
+    SENTIMENT_SERVICE_URL: http://sentiment:3007
+    S3_BUCKET_CONTRACTS: firston-contracts
+    S3_BUCKET_ASSETS: firston-assets
+    S3_ENDPOINT: http://localstack:4566
+    SMTP_HOST: mailhog
+    SMTP_PORT: 1025
+    WABA_API_KEY: ""
+    EFI_SANDBOX: "true"
+
+services:
+
+  # ── INFRASTRUCTURE ──────────────────────────────────────────
+
+  mysql:
+    image: mysql:8.0
+    container_name: crm-mysql
+    restart: unless-stopped
+    networks: [firston]
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: firston_crm
+      MYSQL_USER: firston
+      MYSQL_PASSWORD: firstonpass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./crm/infra/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./crm/infra/mysql/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=America/Sao_Paulo
+      --innodb-buffer-pool-size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "firston", "-pfirstonpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    networks: [firston]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./crm/infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: crm-localstack
+    restart: unless-stopped
+    networks: [firston]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,secretsmanager,kms,sqs
+      DEBUG: 0
+      PERSISTENCE: 1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./crm/infra/localstack/init.sh:/etc/localstack/init/ready.d/init.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: crm-mailhog
+    restart: unless-stopped
+    networks: [firston]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ── MICROSERVICES ───────────────────────────────────────────
+
+  auth:
+    <<: *node-base
+    build:
+      context: ./crm/services/auth
+      dockerfile: Dockerfile.dev
+    container_name: crm-auth
+    ports: ["3001:3001"]
+    environment:
+      <<: *base-env
+      PORT: 3001
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+    volumes:
+      - ./crm/services/auth:/app
+      - /app/node_modules
+    depends_on:
+      mysql:      { condition: service_healthy }
+      redis:      { condition: service_healthy }
+
+  contact:
+    <<: *node-base
+    build:
+      context: ./crm/services/contact
+      dockerfile: Dockerfile.dev
+    container_name: crm-contact
+    ports: ["3002:3002"]
+    environment:
+      <<: *base-env
+      PORT: 3002
+    volumes:
+      - ./crm/services/contact:/app
+      - /app/node_modules
+    depends_on:
+      mysql: { condition: service_healthy }
+
+  calendar:
+    <<: *node-base
+    build:
+      context: ./crm/services/calendar
+      dockerfile: Dockerfile.dev
+    container_name: crm-calendar
+    ports: ["3003:3003"]
+    environment:
+      <<: *base-env
+      PORT: 3003
+    volumes:
+      - ./crm/services/calendar:/app
+      - /app/node_modules
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  pipeline:
+    <<: *node-base
+    build:
+      context: ./crm/services/pipeline
+      dockerfile: Dockerfile.dev
+    container_name: crm-pipeline
+    ports: ["3004:3004"]
+    environment:
+      <<: *base-env
+      PORT: 3004
+    volumes:
+      - ./crm/services/pipeline:/app
+      - /app/node_modules
+    depends_on:
+      mysql: { condition: service_healthy }
+
+  contract:
+    <<: *node-base
+    build:
+      context: ./crm/services/contract
+      dockerfile: Dockerfile.dev
+    container_name: crm-contract
+    ports: ["3005:3005"]
+    environment:
+      <<: *base-env
+      PORT: 3005
+    volumes:
+      - ./crm/services/contract:/app
+      - /app/node_modules
+    depends_on:
+      mysql:      { condition: service_healthy }
+      localstack: { condition: service_healthy }
+
+  messaging:
+    <<: *node-base
+    build:
+      context: ./crm/services/messaging
+      dockerfile: Dockerfile.dev
+    container_name: crm-messaging
+    ports: ["3006:3006"]
+    environment:
+      <<: *base-env
+      PORT: 3006
+    volumes:
+      - ./crm/services/messaging:/app
+      - /app/node_modules
+    depends_on:
+      mysql:     { condition: service_healthy }
+      redis:     { condition: service_healthy }
+      sentiment: { condition: service_started }
+
+  sentiment:
+    <<: *node-base
+    build:
+      context: ./crm/services/sentiment
+      dockerfile: Dockerfile.dev
+    container_name: crm-sentiment
+    ports: ["3007:3007"]
+    environment:
+      <<: *base-env
+      PORT: 3007
+      USE_AWS_COMPREHEND: "false"
+    volumes:
+      - ./crm/services/sentiment:/app
+      - /app/node_modules
+
+  billing:
+    <<: *node-base
+    build:
+      context: ./crm/services/billing
+      dockerfile: Dockerfile.dev
+    container_name: crm-billing
+    ports: ["3008:3008"]
+    environment:
+      <<: *base-env
+      PORT: 3008
+      EFI_CLIENT_ID: ${EFI_CLIENT_ID:-}
+      EFI_CLIENT_SECRET: ${EFI_CLIENT_SECRET:-}
+    volumes:
+      - ./crm/services/billing:/app
+      - /app/node_modules
+    depends_on:
+      mysql:      { condition: service_healthy }
+      localstack: { condition: service_healthy }
+
+  notification:
+    <<: *node-base
+    build:
+      context: ./crm/services/notification
+      dockerfile: Dockerfile.dev
+    container_name: crm-notification
+    ports: ["3009:3009"]
+    environment:
+      <<: *base-env
+      PORT: 3009
+    volumes:
+      - ./crm/services/notification:/app
+      - /app/node_modules
+    depends_on:
+      mysql:   { condition: service_healthy }
+      mailhog: { condition: service_started }
+
+  # ── API GATEWAY ─────────────────────────────────────────────
+  gateway:
+    image: nginx:1.25-alpine
+    container_name: crm-gateway
+    restart: unless-stopped
+    networks: [firston]
+    ports:
+      - "8080:80"
+    volumes:
+      - ./crm/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth
+      - contact
+      - calendar
+      - pipeline
+      - contract
+      - messaging
+      - sentiment
+      - billing
+      - notification

@@ -1,0 +1,20 @@
+{
+  "name": "@firston/pipeline-service",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon --watch src src/index.js"
+  },
+  "dependencies": {
+    "express": "latest",
+    "mysql2": "latest",
+    "cors": "latest",
+    "helmet": "latest",
+    "dotenv": "latest",
+    "uuid": "latest"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}

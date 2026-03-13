@@ -1,0 +1,28 @@
+# ── Development Dockerfile (hot reload via nodemon) ──────────
+# Production equivalent: AWS ECS Fargate task
+# To build for prod: replace CMD with node src/index.js
+# and add: RUN npm ci --only=production
+
+FROM node:20-alpine
+
+RUN apk add --no-cache curl
+
+# Non-root user for security (same as prod ECS task)
+RUN addgroup -S firston && adduser -S firston -G firston
+
+WORKDIR /app
+
+# Install nodemon globally for hot reload
+RUN npm install -g nodemon
+
+# Install deps (cached layer — only reinstalls when package.json changes)
+COPY package*.json ./
+RUN npm install
+
+# In dev, source is mounted as volume — no COPY src needed
+USER firston
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+
+CMD ["nodemon", "--watch", "src", "--ext", "js,json", "src/index.js"]

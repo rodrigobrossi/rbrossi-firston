@@ -1,0 +1,19 @@
+{
+  "name": "@firston/sentiment-service",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon --watch src src/index.js"
+  },
+  "dependencies": {
+    "express": "latest",
+    "cors": "latest",
+    "helmet": "latest",
+    "dotenv": "latest",
+    "axios": "latest"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
