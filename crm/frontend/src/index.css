@@ -1,0 +1,146 @@
+/* ── Design Tokens ─────────────────────────────────────────── */
+:root {
+  /* Palette — deep navy + electric blue + warm off-white */
+  --bg:          #0A0E1A;
+  --bg-card:     #111827;
+  --bg-hover:    #1A2235;
+  --bg-input:    #141D2E;
+  --border:      #1F2D45;
+  --border-light:#243350;
+
+  --accent:      #2563EB;
+  --accent-glow: #3B82F6;
+  --accent-dim:  #1D4ED8;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+
+  --text:        #F0F4FF;
+  --text-2:      #94A3B8;
+  --text-3:      #4A5A78;
+
+  --success:     #10B981;
+  --warning:     #F59E0B;
+  --danger:      #EF4444;
+  --hot:         #EF4444;
+  --warm:        #F59E0B;
+  --cold:        #60A5FA;
+
+  /* Stress gauge colours */
+  --stress-calm:    #10B981;
+  --stress-mild:    #84CC16;
+  --stress-tense:   #F59E0B;
+  --stress-high:    #EF4444;
+  --stress-critical:#DC2626;
+
+  /* Typography */
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+
+  /* Spacing */
+  --radius:    10px;
+  --radius-lg: 16px;
+  --sidebar-w: 224px;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font-body); cursor: pointer; border: none; }
+input, textarea, select {
+  font-family: var(--font-body);
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color .2s;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* ── Utilities ─────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius);
+  font-size: .875rem; font-weight: 500;
+  transition: all .18s; cursor: pointer;
+}
+.btn-primary {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 0 20px rgba(37,99,235,.3);
+}
+.btn-primary:hover { background: var(--accent-glow); box-shadow: 0 0 28px rgba(59,130,246,.4); }
+.btn-ghost {
+  background: transparent; color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
+
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 10px; border-radius: 99px;
+  font-size: .75rem; font-weight: 600;
+}
+.badge-hot    { background: rgba(239,68,68,.15);  color: var(--hot); }
+.badge-warm   { background: rgba(245,158,11,.15); color: var(--warning); }
+.badge-cold   { background: rgba(96,165,250,.15); color: var(--cold); }
+.badge-won    { background: rgba(16,185,129,.15); color: var(--success); }
+.badge-lost   { background: rgba(239,68,68,.15);  color: var(--danger); }
+.badge-active { background: rgba(16,185,129,.15); color: var(--success); }
+
+/* ── Page layout ───────────────────────────────────────────── */
+.layout { display: flex; min-height: 100vh; }
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-w);
+  padding: 28px 32px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 700;
+  letter-spacing: -.02em;
+}
+.page-sub { color: var(--text-2); font-size: .875rem; margin-top: 2px; }
+
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
+}
+.fade-up { animation: fadeUp .35s ease both; }
+.fade-up-2 { animation: fadeUp .35s .07s ease both; }
+.fade-up-3 { animation: fadeUp .35s .14s ease both; }
+
+/* ── Stress gauge ─────────────────────────────────────────── */
+.stress-bar { height: 4px; border-radius: 99px; background: var(--border); overflow: hidden; }
+.stress-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }

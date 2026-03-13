@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FirstOn CRM — Arquitetura</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{
+  background:#060A14;color:#E8F0FF;
+  font-family:'Syne',sans-serif;
+  min-height:100vh;overflow-x:hidden;
+}
+
+/* ── Slide system ── */
+.deck{position:relative;width:100vw}
+.slide{
+  display:none;min-height:100vh;padding:56px 8vw 40px;
+  position:relative;overflow:hidden;
+}
+.slide.active{display:flex;flex-direction:column;justify-content:center}
+
+/* backgrounds */
+.slide-1{background:radial-gradient(ellipse 100% 80% at 50% -5%,rgba(37,99,235,.25) 0%,transparent 55%),#060A14}
+.slide-2{background:radial-gradient(ellipse 80% 60% at 80% 50%,rgba(16,185,129,.12) 0%,transparent 55%),#060A14}
+.slide-3{background:radial-gradient(ellipse 80% 60% at 20% 50%,rgba(245,158,11,.1) 0%,transparent 55%),#060A14}
+.slide-4{background:radial-gradient(ellipse 80% 60% at 60% 20%,rgba(139,92,246,.12) 0%,transparent 55%),#060A14}
+.slide-5{background:radial-gradient(ellipse 80% 60% at 40% 80%,rgba(239,68,68,.1) 0%,transparent 55%),#060A14}
+.slide-6{background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(37,99,235,.15) 0%,transparent 55%),#060A14}
+
+/* ── Typography ── */
+.slide-num{font-size:.75rem;color:#3B82F6;font-family:'DM Mono',monospace;letter-spacing:.1em;margin-bottom:12px}
+h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:16px}
+h2{font-size:clamp(1.4rem,3vw,2.2rem);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
+h3{font-size:1rem;font-weight:600;color:#94A3B8;margin-bottom:20px}
+p{color:#94A3B8;line-height:1.7;max-width:640px;font-size:.95rem}
+.accent{color:#3B82F6}
+.green{color:#10B981}
+.amber{color:#F59E0B}
+.red{color:#EF4444}
+.purple{color:#8B5CF6}
+
+/* ── Architecture diagram ── */
+.arch{display:flex;flex-direction:column;gap:0;align-items:center;margin:32px 0}
+.arch-row{display:flex;gap:12px;align-items:center;justify-content:center}
+.arch-arrow{
+  width:2px;height:28px;background:linear-gradient(to bottom,#1F2D45,#3B82F6);
+  margin:0 auto;position:relative;
+}
+.arch-arrow::after{
+  content:'';position:absolute;bottom:-5px;left:-4px;
+  border:5px solid transparent;border-top:6px solid #3B82F6;
+}
+.box{
+  background:#111827;border:1px solid #1F2D45;border-radius:10px;
+  padding:12px 18px;text-align:center;min-width:120px;
+  transition:all .3s;cursor:default;position:relative;
+}
+.box:hover{border-color:#3B82F6;transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,99,235,.2)}
+.box .label{font-size:.8rem;font-weight:600;letter-spacing:.02em}
+.box .sub{font-size:.68rem;color:#4A5A78;margin-top:2px;font-family:'DM Mono',monospace}
+.box.browser{border-color:#3B82F6;background:rgba(37,99,235,.1)}
+.box.bff{border-color:#8B5CF6;background:rgba(139,92,246,.1)}
+.box.svc{border-color:#1F2D45}
+.box.db{border-color:#F59E0B;background:rgba(245,158,11,.05)}
+.box.aws{border-color:#F59E0B;background:rgba(245,158,11,.05)}
+.cb-badge{
+  position:absolute;top:-8px;right:-8px;
+  background:#8B5CF6;color:#fff;font-size:.6rem;font-weight:700;
+  padding:2px 6px;border-radius:99px;white-space:nowrap;
+}
+
+/* ── Circuit breaker states ── */
+.cb-demo{display:flex;gap:20px;margin:28px 0;flex-wrap:wrap}
+.cb-state{
+  flex:1;min-width:180px;padding:20px;border-radius:12px;border:1px solid;
+  transition:all .5s;
+}
+.cb-closed{border-color:#10B981;background:rgba(16,185,129,.08)}
+.cb-open{border-color:#EF4444;background:rgba(239,68,68,.08)}
+.cb-half{border-color:#F59E0B;background:rgba(245,158,11,.08)}
+.cb-state .state-name{font-size:.75rem;font-weight:700;letter-spacing:.08em;margin-bottom:8px}
+.cb-state .state-desc{font-size:.82rem;color:#94A3B8;line-height:1.6}
+.cb-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.dot-green{background:#10B981;box-shadow:0 0 8px #10B981}
+.dot-red{background:#EF4444;box-shadow:0 0 8px #EF4444}
+.dot-amber{background:#F59E0B;box-shadow:0 0 8px #F59E0B}
+
+/* ── Scaling diagram ── */
+.scale-row{display:flex;gap:12px;margin:16px 0;align-items:center}
+.scale-box{
+  padding:10px 14px;border-radius:8px;font-size:.8rem;font-weight:600;
+  border:1px solid #1F2D45;background:#111827;text-align:center;min-width:80px;
+}
+.x-line{flex:1;height:1px;background:repeating-linear-gradient(90deg,#1F2D45 0,#1F2D45 6px,transparent 6px,transparent 12px)}
+
+/* ── Flow steps ── */
+.flow{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.flow-step{
+  display:flex;gap:16px;align-items:flex-start;
+  padding:16px 0;border-bottom:1px solid #111827;
+}
+.flow-step:last-child{border-bottom:none}
+.step-num{
+  width:28px;height:28px;border-radius:50%;background:#1F2D45;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;color:#3B82F6;flex-shrink:0;
+  font-family:'DM Mono',monospace;
+}
+.step-body .step-title{font-size:.9rem;font-weight:600;margin-bottom:4px}
+.step-body .step-desc{font-size:.82rem;color:#94A3B8;line-height:1.6}
+
+/* ── Port table ── */
+.port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:24px 0}
+.port-card{
+  background:#111827;border:1px solid #1F2D45;border-radius:8px;
+  padding:12px 14px;
+}
+.port-card .port-num{font-family:'DM Mono',monospace;font-size:.75rem;color:#3B82F6;margin-bottom:4px}
+.port-card .port-name{font-size:.85rem;font-weight:600}
+.port-card .port-role{font-size:.72rem;color:#4A5A78;margin-top:2px}
+
+/* ── Nav ── */
+.nav{
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;
+  background:rgba(17,24,39,.95);border:1px solid #1F2D45;
+  border-radius:99px;padding:8px 20px;backdrop-filter:blur(12px);
+  z-index:100;
+}
+.nav button{
+  background:none;border:none;color:#94A3B8;cursor:pointer;
+  font-family:'Syne',sans-serif;font-size:.85rem;font-weight:600;
+  padding:6px 14px;border-radius:99px;transition:all .2s;
+}
+.nav button:hover{color:#fff;background:#1F2D45}
+.nav button:disabled{opacity:.3;cursor:default}
+.nav button.active-btn{color:#fff;background:#2563EB}
+.slide-counter{font-family:'DM Mono',monospace;font-size:.75rem;color:#3B82F6;padding:0 8px}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes flow-line{0%{background-position:0 0}100%{background-position:0 40px}}
+.fade-in{animation:fadeUp .5s ease both}
+.d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}.d5{animation-delay:.5s}
+
+/* animated connector */
+.live-arrow{
+  width:2px;height:28px;margin:0 auto;
+  background:repeating-linear-gradient(to bottom,#3B82F6 0,#3B82F6 6px,transparent 6px,transparent 12px);
+  background-size:2px 12px;animation:flow-line 1s linear infinite;
+  position:relative;
+}
+.live-arrow::after{
+  content:'';position:absolute;bottom:-5px;left:-4px;
+  border:5px solid transparent;border-top:6px solid #3B82F6;
+}
+
+/* ── Scaling numbers ── */
+.stat-row{display:flex;gap:24px;margin:28px 0;flex-wrap:wrap}
+.stat-box{
+  padding:20px 24px;border-radius:12px;border:1px solid #1F2D45;
+  background:#111827;flex:1;min-width:140px;
+}
+.stat-val{font-size:2rem;font-weight:800;font-family:'Syne',sans-serif;line-height:1}
+.stat-lbl{font-size:.75rem;color:#94A3B8;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ══ SLIDE 1: Title ══════════════════════════════════════ -->
+<div class="slide slide-1 active" id="s1">
+  <div class="slide-num fade-in">01 / 06 — VISÃO GERAL</div>
+  <h1 class="fade-in d1">FirstOn CRM<br/><span class="accent">Arquitetura</span></h1>
+  <h3 class="fade-in d2">Microserviços · BFF · Circuit Breaker · Escalável para centenas de usuários</h3>
+  <p class="fade-in d3">Uma visão completa de como o sistema funciona internamente — do clique do usuário até o banco de dados — e como foi projetado para crescer.</p>
+
+  <div class="arch fade-in d4" style="margin-top:40px">
+    <div class="arch-row">
+      <div class="box browser"><div class="label">🖥 Browser</div><div class="sub">React + Vite · :3000</div></div>
+    </div>
+    <div class="live-arrow"></div>
+    <div class="arch-row">
+      <div class="box" style="border-color:#8B5CF6;background:rgba(139,92,246,.1)">
+        <div class="label purple">⚡ BFF</div><div class="sub">Circuit Breakers · :4000</div>
+        <div class="cb-badge">Circuit Breaker</div>
+      </div>
+    </div>
+    <div class="live-arrow"></div>
+    <div class="arch-row" style="gap:8px;flex-wrap:wrap;justify-content:center;max-width:700px">
+      <div class="box svc"><div class="label">auth</div><div class="sub">:3001</div></div>
+      <div class="box svc"><div class="label">contact</div><div class="sub">:3002</div></div>
+      <div class="box svc"><div class="label">calendar</div><div class="sub">:3003</div></div>
+      <div class="box svc"><div class="label">pipeline</div><div class="sub">:3004</div></div>
+      <div class="box svc"><div class="label">messaging</div><div class="sub">:3006</div></div>
+      <div class="box svc"><div class="label">sentiment</div><div class="sub">:3007</div></div>
+      <div class="box svc"><div class="label">billing</div><div class="sub">:3008</div></div>
+    </div>
+    <div class="live-arrow"></div>
+    <div class="arch-row" style="gap:8px">
+      <div class="box db"><div class="label amber">MySQL</div><div class="sub">:3306</div></div>
+      <div class="box db"><div class="label amber">Redis</div><div class="sub">:6379</div></div>
+      <div class="box aws"><div class="label amber">LocalStack</div><div class="sub">S3 · KMS · SQS</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 2: BFF Pattern ════════════════════════════════ -->
+<div class="slide slide-2" id="s2">
+  <div class="slide-num fade-in">02 / 06 — BACKEND FOR FRONTEND (BFF)</div>
+  <h2 class="fade-in d1">Por que um <span class="accent">BFF</span>?</h2>
+  <p class="fade-in d2">O frontend <strong>nunca</strong> fala diretamente com os microserviços. O BFF é a única porta de entrada — ele valida o JWT, injeta o user-id, aplica rate limiting, agrega dados e protege os serviços internos.</p>
+
+  <div class="flow fade-in d3">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Autenticação centralizada</div>
+        <div class="step-desc">O BFF valida o JWT em <strong>todas</strong> as rotas <code>/api/*</code>. Os microserviços confiam no header <code>x-user-id</code> injetado pelo BFF — não precisam validar token individualmente.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Agregação de dados — <span class="green">GET /api/dashboard</span></div>
+        <div class="step-desc">Uma única chamada do frontend recebe dados de 3 serviços em paralelo (contatos, pipeline, calendário) via <code>Promise.allSettled</code>. Elimina waterfalls de rede no browser.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Rate limiting por camada</div>
+        <div class="step-desc"><code>/auth/*</code>: 30 req/15min · <code>/api/*</code>: 200 req/min. Protege contra abusos sem tocar nos serviços internos.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Circuit Breaker em cada downstream call</div>
+        <div class="step-desc">Cada serviço tem seu próprio circuit breaker via <code>opossum</code>. Se o <code>billing</code> cair, o BFF retorna fallback — o resto do app continua funcionando.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Visibilidade</div>
+        <div class="step-desc"><code>GET http://localhost:4000/health</code> retorna o estado (OPEN/CLOSED/HALF_OPEN) de todos os circuit breakers em tempo real.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 3: Circuit Breaker ════════════════════════════ -->
+<div class="slide slide-3" id="s3">
+  <div class="slide-num fade-in">03 / 06 — CIRCUIT BREAKER PATTERN</div>
+  <h2 class="fade-in d1"><span class="amber">Circuit Breaker</span> — como funciona</h2>
+  <p class="fade-in d2">Implementado com a biblioteca <strong>opossum</strong> (Node.js). Cada serviço downstream tem um circuit breaker independente com janela deslizante de 10s.</p>
+
+  <div class="cb-demo fade-in d3">
+    <div class="cb-state cb-closed">
+      <div class="state-name"><span class="cb-dot dot-green"></span>CLOSED — normal</div>
+      <div class="state-desc">
+        Chamadas passam normalmente.<br/>
+        O breaker monitora a taxa de falhas.<br/><br/>
+        <strong>Abre quando:</strong> &gt;50% de falhas<br/>nas últimas 10 chamadas (mín. 3).
+      </div>
+    </div>
+    <div class="cb-state cb-open">
+      <div class="state-name"><span class="cb-dot dot-red"></span>OPEN — curtocircuito</div>
+      <div class="state-desc">
+        Chamadas são <strong>bloqueadas imediatamente</strong>.<br/>
+        O BFF retorna o fallback configurado<br/>(ex: lista vazia, 503 com mensagem).<br/><br/>
+        <strong>Fica aberto por:</strong> 15 segundos.
+      </div>
+    </div>
+    <div class="cb-state cb-half">
+      <div class="state-name"><span class="cb-dot dot-amber"></span>HALF-OPEN — sondagem</div>
+      <div class="state-desc">
+        Após 15s, <strong>uma chamada de teste</strong> é liberada.<br/>
+        Se sucesso → volta a CLOSED.<br/>
+        Se falha → volta a OPEN por mais 15s.
+      </div>
+    </div>
+  </div>
+
+  <div class="fade-in d4" style="background:#111827;border:1px solid #1F2D45;border-radius:10px;padding:16px 20px;margin-top:8px">
+    <div style="font-size:.75rem;color:#3B82F6;font-family:'DM Mono',monospace;margin-bottom:8px">// CONFIGURAÇÃO POR SERVIÇO (crm/services/bff/src/circuitBreaker.js)</div>
+    <pre style="font-family:'DM Mono',monospace;font-size:.8rem;color:#94A3B8;line-height:1.8"><span class="green">timeout:</span>                  5000   <span style="color:#4A5A78">// 5s para considerar falha</span>
+<span class="green">errorThresholdPercentage:</span>   50   <span style="color:#4A5A78">// abre se >50% falhar</span>
+<span class="green">resetTimeout:</span>             15000   <span style="color:#4A5A78">// tenta recuperar após 15s</span>
+<span class="green">volumeThreshold:</span>              3   <span style="color:#4A5A78">// mínimo de chamadas antes de agir</span>
+<span class="green">rollingCountTimeout:</span>      10000   <span style="color:#4A5A78">// janela deslizante de 10s</span></pre>
+  </div>
+</div>
+
+<!-- ══ SLIDE 4: Microservices ═══════════════════════════════ -->
+<div class="slide slide-4" id="s4">
+  <div class="slide-num fade-in">04 / 06 — MICROSERVIÇOS</div>
+  <h2 class="fade-in d1">9 <span class="purple">serviços</span> independentes</h2>
+  <p class="fade-in d2">Cada serviço tem seu próprio banco de dados (tabelas isoladas no MySQL), seu próprio Dockerfile, e pode ser escalado independentemente em produção no ECS Fargate.</p>
+
+  <div class="port-grid fade-in d3">
+    <div class="port-card"><div class="port-num">:3001</div><div class="port-name">auth</div><div class="port-role">JWT · OAuth2 Google/Microsoft · refresh tokens (Redis)</div></div>
+    <div class="port-card"><div class="port-num">:3002</div><div class="port-name">contact</div><div class="port-role">CRUD · PII criptografado AES-256 · CSV import · score</div></div>
+    <div class="port-card"><div class="port-num">:3003</div><div class="port-name">calendar</div><div class="port-role">Eventos · agenda · win odds por contato</div></div>
+    <div class="port-card"><div class="port-num">:3004</div><div class="port-name">pipeline</div><div class="port-role">Kanban · 6 estágios · odds ponderadas · stats</div></div>
+    <div class="port-card"><div class="port-num">:3005</div><div class="port-name">contract</div><div class="port-role">Templates · PDF gerado · S3 · D4Sign (prod)</div></div>
+    <div class="port-card"><div class="port-num">:3006</div><div class="port-name">messaging</div><div class="port-role">WhatsApp 360dialog · e-mail · histórico unificado</div></div>
+    <div class="port-card"><div class="port-num">:3007</div><div class="port-name">sentiment</div><div class="port-role">Análise PT-BR · stress gauge 0–100 · lexicon local</div></div>
+    <div class="port-card"><div class="port-num">:3008</div><div class="port-name">billing</div><div class="port-role">PIX via Efí Bank · Secrets Manager · webhooks</div></div>
+    <div class="port-card"><div class="port-num">:3009</div><div class="port-name">notification</div><div class="port-role">E-mail via SMTP · templates · Mailhog local / SES prod</div></div>
+  </div>
+
+  <div class="fade-in d4" style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap">
+    <div style="padding:10px 16px;background:#111827;border:1px solid #10B981;border-radius:8px;font-size:.8rem">
+      <span class="green">✓</span> Isolamento de falhas — se sentiment cair, o resto funciona
+    </div>
+    <div style="padding:10px 16px;background:#111827;border:1px solid #3B82F6;border-radius:8px;font-size:.8rem">
+      <span class="accent">✓</span> Deploy independente em produção (ECS Fargate)
+    </div>
+    <div style="padding:10px 16px;background:#111827;border:1px solid #8B5CF6;border-radius:8px;font-size:.8rem">
+      <span class="purple">✓</span> Hot reload via nodemon no dev
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 5: Scaling ════════════════════════════════════ -->
+<div class="slide slide-5" id="s5">
+  <div class="slide-num fade-in">05 / 06 — ESCALABILIDADE</div>
+  <h2 class="fade-in d1">Pronto para <span class="red">escalar</span></h2>
+  <p class="fade-in d2">O design local já espelha a arquitetura de produção na AWS. Para escalar de 10 para centenas de usuários, são apenas 4 mudanças de variável de ambiente.</p>
+
+  <div class="stat-row fade-in d3">
+    <div class="stat-box"><div class="stat-val accent">4</div><div class="stat-lbl">mudanças de env para ir a produção</div></div>
+    <div class="stat-box"><div class="stat-val green">~$116</div><div class="stat-lbl">USD/mês na AWS para até 500 usuários</div></div>
+    <div class="stat-box"><div class="stat-val amber">18</div><div class="stat-lbl">usuários pagantes para break-even</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:#8B5CF6">88%</div><div class="stat-lbl">margem bruta com 100 usuários</div></div>
+  </div>
+
+  <div class="flow fade-in d4" style="margin-top:16px">
+    <div class="flow-step">
+      <div class="step-num" style="background:rgba(37,99,235,.2);color:#3B82F6">↑</div>
+      <div class="step-body">
+        <div class="step-title">Escalar BFF horizontalmente</div>
+        <div class="step-desc">O BFF é stateless. Em produção, múltiplas tasks do ECS Fargate rodam atrás de um Application Load Balancer. Circuit breakers são por processo (em-memória), o que é correto para isolamento.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num" style="background:rgba(16,185,129,.2);color:#10B981">↑</div>
+      <div class="step-body">
+        <div class="step-title">Cada microserviço escala independente</div>
+        <div class="step-desc">Se <code>sentiment</code> vira gargalo, sobe só o sentiment. ECS Fargate com Auto Scaling por CPU/memória. Sem impacto nos outros serviços.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num" style="background:rgba(245,158,11,.2);color:#F59E0B">↑</div>
+      <div class="step-body">
+        <div class="step-title">MySQL → RDS Multi-AZ / Read Replicas</div>
+        <div class="step-desc">Leituras pesadas (relatórios, dashboard) podem ser redirecionadas para read replicas. Write vai sempre ao primary. Zero mudança de código — só variável de ambiente.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num" style="background:rgba(139,92,246,.2);color:#8B5CF6">↑</div>
+      <div class="step-body">
+        <div class="step-title">Redis → ElastiCache cluster mode</div>
+        <div class="step-desc">Sessões, rate limit counters e cache de tokens já usam Redis. Em produção: ElastiCache Multi-AZ com failover automático em &lt;60s.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 6: Local → Prod ═══════════════════════════════ -->
+<div class="slide slide-6" id="s6">
+  <div class="slide-num fade-in">06 / 06 — LOCAL → PRODUÇÃO</div>
+  <h2 class="fade-in d1">4 variáveis para <span class="green">ir a produção</span></h2>
+  <p class="fade-in d2">Toda a infraestrutura local espelha exatamente a AWS. LocalStack emula S3, KMS e Secrets Manager. MySQL local → RDS. Redis local → ElastiCache.</p>
+
+  <div class="fade-in d3" style="background:#111827;border:1px solid #1F2D45;border-radius:10px;padding:20px;margin:24px 0;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:.82rem">
+      <tr style="border-bottom:1px solid #1F2D45">
+        <th style="text-align:left;padding:8px 12px;color:#4A5A78;font-weight:500">Variável</th>
+        <th style="text-align:left;padding:8px 12px;color:#4A5A78;font-weight:500">Local (dev)</th>
+        <th style="text-align:left;padding:8px 12px;color:#4A5A78;font-weight:500">Produção (AWS)</th>
+      </tr>
+      <tr style="border-bottom:1px solid #111827">
+        <td style="padding:10px 12px;color:#3B82F6">DB_HOST</td>
+        <td style="padding:10px 12px;color:#94A3B8">mysql</td>
+        <td style="padding:10px 12px;color:#10B981">firston-crm.xxxxx.rds.amazonaws.com</td>
+      </tr>
+      <tr style="border-bottom:1px solid #111827">
+        <td style="padding:10px 12px;color:#3B82F6">REDIS_URL</td>
+        <td style="padding:10px 12px;color:#94A3B8">redis://redis:6379</td>
+        <td style="padding:10px 12px;color:#10B981">rediss://firston.xxxxx.cache.amazonaws.com:6379</td>
+      </tr>
+      <tr style="border-bottom:1px solid #111827">
+        <td style="padding:10px 12px;color:#3B82F6">AWS_ENDPOINT_URL</td>
+        <td style="padding:10px 12px;color:#94A3B8">http://localstack:4566</td>
+        <td style="padding:10px 12px;color:#10B981">(remover — usa AWS real)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;color:#3B82F6">USE_AWS_SECRETS</td>
+        <td style="padding:10px 12px;color:#94A3B8">false</td>
+        <td style="padding:10px 12px;color:#10B981">true</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="fade-in d4" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+    <div style="padding:14px 18px;background:rgba(37,99,235,.1);border:1px solid #2563EB;border-radius:10px;flex:1;min-width:200px">
+      <div style="font-size:.75rem;color:#3B82F6;font-weight:700;margin-bottom:6px">🖥 DESENVOLVIMENTO</div>
+      <div style="font-size:.82rem;color:#94A3B8;line-height:1.7">
+        bash start.sh<br/>
+        → http://localhost:3000
+      </div>
+    </div>
+    <div style="padding:14px 18px;background:rgba(16,185,129,.1);border:1px solid #10B981;border-radius:10px;flex:1;min-width:200px">
+      <div style="font-size:.75rem;color:#10B981;font-weight:700;margin-bottom:6px">☁️ PRODUÇÃO AWS</div>
+      <div style="font-size:.82rem;color:#94A3B8;line-height:1.7">
+        ECS Fargate + ALB<br/>
+        RDS + ElastiCache + S3
+      </div>
+    </div>
+    <div style="padding:14px 18px;background:rgba(139,92,246,.1);border:1px solid #8B5CF6;border-radius:10px;flex:1;min-width:200px">
+      <div style="font-size:.75rem;color:#8B5CF6;font-weight:700;margin-bottom:6px">⚡ CIRCUIT BREAKERS</div>
+      <div style="font-size:.82rem;color:#94A3B8;line-height:1.7">
+        localhost:4000/health<br/>
+        estado em tempo real
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<nav class="nav" id="nav">
+  <button id="prevBtn" onclick="go(-1)" disabled>← Anterior</button>
+  <span class="slide-counter" id="counter">1 / 6</span>
+  <button id="nextBtn" onclick="go(1)">Próximo →</button>
+</nav>
+
+<script>
+const slides = document.querySelectorAll('.slide')
+let cur = 0
+
+function show(n) {
+  slides[cur].classList.remove('active')
+  cur = Math.max(0, Math.min(n, slides.length - 1))
+  slides[cur].classList.add('active')
+  // re-trigger animations
+  slides[cur].querySelectorAll('[class*="fade-in"]').forEach(el => {
+    el.style.animation = 'none'
+    void el.offsetWidth
+    el.style.animation = ''
+  })
+  document.getElementById('counter').textContent = `${cur+1} / ${slides.length}`
+  document.getElementById('prevBtn').disabled = cur === 0
+  document.getElementById('nextBtn').disabled = cur === slides.length - 1
+}
+
+function go(dir) { show(cur + dir) }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1)
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1)
+})
+</script>
+</body>
+</html>

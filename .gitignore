@@ -3,3 +3,7 @@
 
 # SVN
 .svn/
+
+# Environment
+.env
+node_modules/
