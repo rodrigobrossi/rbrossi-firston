@@ -21,7 +21,70 @@ const STAGES = ['lead','qualification','proposal','negotiation','won','lost'];
 // Win odds auto-suggestion per stage
 const STAGE_ODDS = { lead:10, qualification:30, proposal:55, negotiation:75, won:100, lost:0 };
 
+// Default column definitions — seeded lazily on first GET /columns per user
+const DEFAULT_COLUMNS = [
+  { key_name: 'lead',          label: 'Lead',         color: '#60A5FA', position: 0 },
+  { key_name: 'qualification', label: 'Qualificação', color: '#818CF8', position: 1 },
+  { key_name: 'proposal',      label: 'Proposta',     color: '#A78BFA', position: 2 },
+  { key_name: 'negotiation',   label: 'Negociação',   color: '#F59E0B', position: 3 },
+  { key_name: 'won',           label: 'Ganho',        color: '#10B981', position: 4 },
+  { key_name: 'lost',          label: 'Perdido',      color: '#EF4444', position: 5 },
+];
+
 app.get('/health', (_, res) => res.json({ service: 'pipeline-service', status: 'ok' }));
+
+// ── Column configuration ───────────────────────────────────────
+
+// GET /columns — returns user's column config, seeding defaults on first access
+app.get('/columns', async (req, res) => {
+  const ownerId = req.headers['x-user-id'];
+  if (!ownerId) return res.status(401).json({ error: 'x-user-id required' });
+  try {
+    let [rows] = await db.execute(
+      'SELECT * FROM pipeline_columns WHERE owner_id=? ORDER BY position',
+      [ownerId]
+    );
+    if (rows.length === 0) {
+      for (const col of DEFAULT_COLUMNS) {
+        await db.execute(
+          'INSERT INTO pipeline_columns (id, owner_id, key_name, label, color, position) VALUES (?,?,?,?,?,?)',
+          [uuid(), ownerId, col.key_name, col.label, col.color, col.position]
+        );
+      }
+      [rows] = await db.execute(
+        'SELECT * FROM pipeline_columns WHERE owner_id=? ORDER BY position',
+        [ownerId]
+      );
+    }
+    res.json({ columns: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /columns — bulk update (label, color, position, visibility)
+app.put('/columns', async (req, res) => {
+  const ownerId = req.headers['x-user-id'];
+  if (!ownerId) return res.status(401).json({ error: 'x-user-id required' });
+  const { columns } = req.body;
+  if (!Array.isArray(columns) || columns.length === 0)
+    return res.status(400).json({ error: 'columns array required' });
+  try {
+    for (const col of columns) {
+      await db.execute(
+        `UPDATE pipeline_columns
+         SET label=?, color=?, position=?, visible=?, updated_at=NOW()
+         WHERE owner_id=? AND key_name=?`,
+        [col.label, col.color, col.position, col.visible ? 1 : 0, ownerId, col.key_name]
+      );
+    }
+    const [rows] = await db.execute(
+      'SELECT * FROM pipeline_columns WHERE owner_id=? ORDER BY position',
+      [ownerId]
+    );
+    res.json({ columns: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Opportunities ──────────────────────────────────────────────
 
 // GET /opportunities — full pipeline board
 app.get('/opportunities', async (req, res) => {
@@ -37,7 +100,6 @@ app.get('/opportunities', async (req, res) => {
        ORDER BY FIELD(o.stage,'lead','qualification','proposal','negotiation','won','lost'), o.updated_at DESC`,
       [ownerId]
     );
-    // Group by stage for Kanban
     const board = {};
     for (const s of STAGES) board[s] = [];
     for (const r of rows) board[r.stage].push(r);
@@ -70,7 +132,6 @@ app.patch('/opportunities/:id', async (req, res) => {
   if (stage) {
     if (!STAGES.includes(stage)) return res.status(400).json({ error: `Invalid stage. Use: ${STAGES.join(', ')}` });
     sets.push('stage=?'); params.push(stage);
-    // Auto-set win_odds when moving stage (unless explicitly provided)
     if (win_odds === undefined) { sets.push('win_odds=?'); params.push(STAGE_ODDS[stage]); }
     if (stage === 'won' || stage === 'lost') { sets.push('closed_at=NOW()'); }
   }

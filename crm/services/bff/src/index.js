@@ -163,6 +163,8 @@ app.patch('/api/events/:id',    (req, res) => proxy('calendar', req, res, { path
 app.delete('/api/events/:id',   (req, res) => proxy('calendar', req, res, { path: `/events/${req.params.id}` }));
 
 // ── Pipeline ──────────────────────────────────────────────────
+app.get('/api/pipeline/columns',      (req, res) => proxy('pipeline', req, res, { path: '/columns' }));
+app.put('/api/pipeline/columns',      (req, res) => proxy('pipeline', req, res, { path: '/columns' }));
 app.get('/api/opportunities',         (req, res) => proxy('pipeline', req, res, { path: '/opportunities' }));
 app.get('/api/opportunities/stats',   (req, res) => proxy('pipeline', req, res, { path: '/opportunities/stats' }));
 app.post('/api/opportunities',        (req, res) => proxy('pipeline', req, res, { path: '/opportunities' }));

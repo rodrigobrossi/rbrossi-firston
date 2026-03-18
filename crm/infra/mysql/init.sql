@@ -193,6 +193,21 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   UNIQUE KEY uq_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── PIPELINE COLUMNS (user-configurable kanban stages) ───────
+CREATE TABLE IF NOT EXISTS pipeline_columns (
+  id         CHAR(36)     PRIMARY KEY,
+  owner_id   CHAR(36)     NOT NULL,
+  key_name   VARCHAR(50)  NOT NULL,
+  label      VARCHAR(100) NOT NULL,
+  color      VARCHAR(20)  NOT NULL DEFAULT '#60A5FA',
+  position   TINYINT      NOT NULL DEFAULT 0,
+  visible    TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_owner_key (owner_id, key_name),
+  INDEX idx_owner_pos (owner_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ── AUDIT LOG (LGPD) ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
   id         BIGINT       PRIMARY KEY AUTO_INCREMENT,

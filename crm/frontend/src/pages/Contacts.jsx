@@ -251,11 +251,62 @@ function Section({ title, children }) {
   )
 }
 
-function Field({ label, type = 'text', full = false, value, onChange }) {
+function Field({ label, type = 'text', full = false, value, onChange, error }) {
   return (
     <div style={full ? { gridColumn: '1 / -1' } : {}}>
       <label style={MODAL_LABEL}>{label}</label>
-      <input type={type} value={value ?? ''} onChange={onChange} style={MODAL_INPUT} />
+      <input
+        type={type}
+        value={value ?? ''}
+        onChange={onChange}
+        style={{
+          ...MODAL_INPUT,
+          ...(error ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 3px rgba(239,68,68,.12)' } : {}),
+        }}
+      />
+      {error && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          marginTop: 4, fontSize: '.72rem', color: 'var(--danger)',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="6" cy="6" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M6 3.5v3M6 8.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Field error decorator (for non-Field elements like selects) ─
+function FieldError({ error, children }) {
+  return (
+    <div>
+      <div style={error ? { position: 'relative' } : {}}>
+        {error && (
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: 6,
+            border: '1px solid var(--danger)',
+            boxShadow: '0 0 0 3px rgba(239,68,68,.12)',
+            pointerEvents: 'none', zIndex: 1,
+          }} />
+        )}
+        {children}
+      </div>
+      {error && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          marginTop: 4, fontSize: '.72rem', color: 'var(--danger)',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="6" cy="6" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M6 3.5v3M6 8.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          {error}
+        </div>
+      )}
     </div>
   )
 }
@@ -291,9 +342,34 @@ function ContactModal({ initial, onClose }) {
 
   const [photoFile,    setPhotoFile]    = useState(null)
   const [photoPreview, setPhotoPreview] = useState(initial?.photo_url || null)
+  const [errors,       setErrors]       = useState({})
   const fileRef = useRef(null)
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k, v) => {
+    setForm(f => ({ ...f, [k]: v }))
+    if (errors[k]) setErrors(e => { const n = { ...e }; delete n[k]; return n })
+  }
+
+  const validate = (f) => {
+    const e = {}
+    if (!f.first_name?.trim())
+      e.first_name = 'Nome é obrigatório'
+    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email))
+      e.email = 'E-mail inválido'
+    if (f.phone && f.phone.replace(/\D/g, '').length < 8)
+      e.phone = 'Telefone deve ter ao menos 8 dígitos'
+    if (f.phone2 && f.phone2.replace(/\D/g, '').length < 8)
+      e.phone2 = 'Telefone deve ter ao menos 8 dígitos'
+    if (f.cpf && f.cpf.replace(/\D/g, '').length !== 11)
+      e.cpf = 'CPF deve ter 11 dígitos'
+    if (f.linkedin_url && !/^https?:\/\/.+/.test(f.linkedin_url))
+      e.linkedin_url = 'URL deve começar com http:// ou https://'
+    if (f.budget_brl !== '' && f.budget_brl !== null && Number(f.budget_brl) < 0)
+      e.budget_brl = 'Budget não pode ser negativo'
+    if (f.date_of_birth && new Date(f.date_of_birth) > new Date())
+      e.date_of_birth = 'Data de nascimento não pode ser no futuro'
+    return e
+  }
 
   const saveMut = useMutation({
     mutationFn: async (formData) => {
@@ -380,10 +456,10 @@ function ContactModal({ initial, onClose }) {
 
           {/* Identidade */}
           <Section title="Identidade">
-            <Field label="Nome *"           value={form.first_name}    onChange={e => set('first_name', e.target.value)} />
-            <Field label="Sobrenome"         value={form.last_name}     onChange={e => set('last_name', e.target.value)} />
-            <Field label="Chamado(a) como"   value={form.preferred_name} onChange={e => set('preferred_name', e.target.value)} />
-            <Field label="Data de nascimento" type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} />
+            <Field label="Nome *"            value={form.first_name}    onChange={e => set('first_name', e.target.value)}    error={errors.first_name} />
+            <Field label="Sobrenome"          value={form.last_name}     onChange={e => set('last_name', e.target.value)} />
+            <Field label="Chamado(a) como"    value={form.preferred_name} onChange={e => set('preferred_name', e.target.value)} />
+            <Field label="Data de nascimento" type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} error={errors.date_of_birth} />
             <div>
               <label style={MODAL_LABEL}>Sexo biológico</label>
               <select value={form.sex} onChange={e => set('sex', e.target.value)} style={MODAL_INPUT}>
@@ -391,14 +467,14 @@ function ContactModal({ initial, onClose }) {
               </select>
             </div>
             <Field label="Identidade de gênero" value={form.gender} onChange={e => set('gender', e.target.value)} />
-            <Field label="CPF (criptografado)"   value={form.cpf}    onChange={e => set('cpf', e.target.value)} />
+            <Field label="CPF (criptografado)"   value={form.cpf}    onChange={e => set('cpf', e.target.value)} error={errors.cpf} />
           </Section>
 
           {/* Contato */}
           <Section title="Contato">
-            <Field label="E-mail"     type="email" value={form.email}  onChange={e => set('email', e.target.value)} />
-            <Field label="Telefone 1"              value={form.phone}  onChange={e => set('phone', e.target.value)} />
-            <Field label="Telefone 2"              value={form.phone2} onChange={e => set('phone2', e.target.value)} />
+            <Field label="E-mail"     type="email" value={form.email}  onChange={e => set('email', e.target.value)}  error={errors.email} />
+            <Field label="Telefone 1"              value={form.phone}  onChange={e => set('phone', e.target.value)}  error={errors.phone} />
+            <Field label="Telefone 2"              value={form.phone2} onChange={e => set('phone2', e.target.value)} error={errors.phone2} />
             <div>
               <label style={MODAL_LABEL}>Canal preferido</label>
               <select value={form.preferred_channel} onChange={e => set('preferred_channel', e.target.value)} style={MODAL_INPUT}>
@@ -411,13 +487,15 @@ function ContactModal({ initial, onClose }) {
           <Section title="Localização">
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={MODAL_LABEL}>Endereço</label>
-              <AddressInput
-                value={form.address}
-                onChange={v => set('address', v)}
-                onPlaceSelect={({ address, address_lat, address_lng }) =>
-                  setForm(f => ({ ...f, address, address_lat, address_lng }))}
-                googleReady={googleReady}
-              />
+              <FieldError error={errors.address}>
+                <AddressInput
+                  value={form.address}
+                  onChange={v => set('address', v)}
+                  onPlaceSelect={({ address, address_lat, address_lng }) =>
+                    setForm(f => ({ ...f, address, address_lat, address_lng }))}
+                  googleReady={googleReady}
+                />
+              </FieldError>
               {!import.meta.env.VITE_GOOGLE_MAPS_KEY && (
                 <div style={{ fontSize: '.7rem', color: 'var(--text-3)', marginTop: 4 }}>
                   Adicione <code>VITE_GOOGLE_MAPS_KEY=sua_chave</code> em <code>crm/frontend/.env.local</code> para autocompletar
@@ -430,8 +508,8 @@ function ContactModal({ initial, onClose }) {
           <Section title="CRM">
             <Field label="Cargo"        value={form.title}        onChange={e => set('title', e.target.value)} />
             <Field label="Setor"        value={form.sector}       onChange={e => set('sector', e.target.value)} />
-            <Field label="LinkedIn URL" value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} full />
-            <Field label="Budget (R$)"  value={form.budget_brl}   onChange={e => set('budget_brl', e.target.value)} type="number" />
+            <Field label="LinkedIn URL" value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} full error={errors.linkedin_url} />
+            <Field label="Budget (R$)"  value={form.budget_brl}   onChange={e => set('budget_brl', e.target.value)} type="number" error={errors.budget_brl} />
             <div>
               <label style={MODAL_LABEL}>Temperatura</label>
               <select value={form.temperature} onChange={e => set('temperature', e.target.value)} style={MODAL_INPUT}>
@@ -452,8 +530,12 @@ function ContactModal({ initial, onClose }) {
             </span>
           )}
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" disabled={saveMut.isPending || !form.first_name}
-            onClick={() => saveMut.mutate(form)}>
+          <button className="btn btn-primary" disabled={saveMut.isPending}
+            onClick={() => {
+              const e = validate(form)
+              if (Object.keys(e).length) { setErrors(e); return }
+              saveMut.mutate(form)
+            }}>
             {saveMut.isPending ? 'Salvando…' : isEdit ? 'Atualizar' : 'Criar contato'}
           </button>
         </div>
