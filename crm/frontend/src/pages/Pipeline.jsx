@@ -5,8 +5,9 @@
  *  - Optimistic updates via React Query cache mutation
  *  - OddsRing SVG for win probability
  */
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Plus, X, ChevronRight } from 'lucide-react'
 import api from '../lib/api'
 
@@ -26,9 +27,8 @@ function OddsRing({ value }) {
 }
 
 // ── Kanban card (draggable) ────────────────────────────────────
-// Design: Command pattern — drag start captures the "move command" payload
-// in DataTransfer; the column executes it on drop.
 function KanbanCard({ opp, onMove, isDragging, onDragStart, onDragEnd }) {
+  const { t } = useTranslation()
   return (
     <div
       className="card"
@@ -41,7 +41,6 @@ function KanbanCard({ opp, onMove, isDragging, onDragStart, onDragEnd }) {
         opacity: isDragging ? 0.4 : 1,
         transition: 'opacity .15s, box-shadow .15s',
         userSelect: 'none',
-        ...(isDragging ? {} : { ':hover': { boxShadow: '0 4px 16px rgba(0,0,0,.3)' } }),
       }}
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -69,13 +68,13 @@ function KanbanCard({ opp, onMove, isDragging, onDragStart, onDragEnd }) {
         {opp.stage !== 'won' && (
           <button className="btn" onClick={e => { e.stopPropagation(); onMove(opp.id, 'won') }}
             style={{ fontSize: '.7rem', padding: '3px 8px', background: 'rgba(16,185,129,.15)', color: 'var(--success)', borderRadius: 6 }}>
-            ✓ Ganho
+            {t('pipeline.won')}
           </button>
         )}
         {opp.stage !== 'lost' && (
           <button className="btn" onClick={e => { e.stopPropagation(); onMove(opp.id, 'lost') }}
             style={{ fontSize: '.7rem', padding: '3px 8px', background: 'rgba(239,68,68,.1)', color: 'var(--danger)', borderRadius: 6 }}>
-            ✗ Perdido
+            {t('pipeline.lost')}
           </button>
         )}
         {['lead','qualification','proposal','negotiation'].includes(opp.stage) && (() => {
@@ -85,7 +84,7 @@ function KanbanCard({ opp, onMove, isDragging, onDragStart, onDragEnd }) {
           return next ? (
             <button className="btn" onClick={e => { e.stopPropagation(); onMove(opp.id, next) }}
               style={{ fontSize: '.7rem', padding: '3px 8px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 6 }}>
-              Avançar <ChevronRight size={10} />
+              {t('pipeline.advance')} <ChevronRight size={10} />
             </button>
           ) : null
         })()}
@@ -158,6 +157,7 @@ function KanbanColumn({ column, cards, draggingId, draggingStage, onDrop, onMove
 
 // ── Add opportunity modal ──────────────────────────────────────
 function AddModal({ columns, onClose }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { data: contacts } = useQuery({
     queryKey: ['contacts'],
@@ -176,20 +176,20 @@ function AddModal({ columns, onClose }) {
       alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
       <div className="card" style={{ width: 440, padding: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Nova Oportunidade</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>{t('pipeline.new')}</h2>
           <button onClick={onClose} style={{ background: 'none', color: 'var(--text-2)', padding: 4 }}><X size={18} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Título *</label>
+            <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('common.title_field')}</label>
             <input value={form.title} onChange={e => set('title', e.target.value)}
               style={{ width: '100%', padding: '8px 12px', fontSize: '.875rem' }} />
           </div>
           <div>
-            <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Contato *</label>
+            <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('pipeline.field_contact_required')}</label>
             <select value={form.contact_id} onChange={e => set('contact_id', e.target.value)}
               style={{ width: '100%', padding: '8px 12px', fontSize: '.875rem' }}>
-              <option value="">— Selecione —</option>
+              <option value="">{t('common.select_option')}</option>
               {(contacts?.data || []).map(c => (
                 <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
               ))}
@@ -197,7 +197,7 @@ function AddModal({ columns, onClose }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Estágio</label>
+              <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('pipeline.field_stage')}</label>
               <select value={form.stage} onChange={e => set('stage', e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', fontSize: '.875rem' }}>
                 {activeStages.map(c => (
@@ -206,17 +206,17 @@ function AddModal({ columns, onClose }) {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Valor (R$)</label>
+              <label style={{ fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('pipeline.field_value')}</label>
               <input type="number" value={form.value_brl} onChange={e => set('value_brl', e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', fontSize: '.875rem' }} />
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
           <button className="btn btn-primary" disabled={mut.isPending || !form.title || !form.contact_id}
             onClick={() => mut.mutate(form)}>
-            {mut.isPending ? 'Salvando…' : 'Salvar'}
+            {mut.isPending ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -226,25 +226,23 @@ function AddModal({ columns, onClose }) {
 
 // ── Main page ──────────────────────────────────────────────────
 export default function Pipeline() {
+  const { t } = useTranslation()
   const [showAdd, setShowAdd]   = useState(false)
   const [draggingId, setDragging] = useState(null)
   const [draggingStage, setDraggingStage] = useState(null)
   const qc = useQueryClient()
 
-  // Fetch column config (seeds defaults on first call)
   const { data: colData } = useQuery({
     queryKey: ['pipeline-columns'],
     queryFn: () => api.get('/pipeline/columns').then(r => r.data),
   })
   const columns = (colData?.columns || []).filter(c => c.visible)
 
-  // Fetch board data
   const { data, isLoading } = useQuery({
     queryKey: ['pipeline'],
     queryFn: () => api.get('/opportunities').then(r => r.data),
   })
 
-  // Move mutation with optimistic update (Command pattern execution)
   const move = useMutation({
     mutationFn: ({ id, stage }) => api.patch(`/opportunities/${id}`, { stage }),
     onMutate: async ({ id, stage }) => {
@@ -282,16 +280,16 @@ export default function Pipeline() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Pipeline</h1>
-          <p className="page-sub">Kanban de oportunidades</p>
+          <h1 className="page-title">{t('pipeline.title')}</h1>
+          <p className="page-sub">{t('pipeline.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
-          <Plus size={15} /> Nova Oportunidade
+          <Plus size={15} /> {t('pipeline.new')}
         </button>
       </div>
 
       {isLoading ? (
-        <p style={{ color: 'var(--text-3)', padding: 20 }}>Carregando…</p>
+        <p style={{ color: 'var(--text-3)', padding: 20 }}>{t('common.loading')}</p>
       ) : (
         <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16 }}>
           {columns.map(col => (

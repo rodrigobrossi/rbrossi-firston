@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FileText, Plus, X, CheckCircle, Send } from 'lucide-react'
 import api from '../lib/api'
 
-const STATUS_LABEL = { draft:'Rascunho', sent:'Enviado', signed:'Assinado', cancelled:'Cancelado' }
 const STATUS_COLOR = { draft:'var(--text-2)', sent:'var(--warning)', signed:'var(--success)', cancelled:'var(--danger)' }
 
 function AddContractModal({ onClose }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { data: opps } = useQuery({ queryKey:['pipeline'], queryFn:()=>api.get('/opportunities').then(r=>r.data) })
   const { data: tmpls } = useQuery({ queryKey:['templates'], queryFn:()=>api.get('/contracts/templates').then(r=>r.data) })
@@ -18,33 +19,35 @@ function AddContractModal({ onClose }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
       <div className="card" style={{ width:440, padding:28 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700 }}>Novo Contrato</h2>
+          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700 }}>{t('contracts.new')}</h2>
           <button onClick={onClose} style={{ background:'none', color:'var(--text-2)', padding:4 }}><X size={18}/></button>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Título *</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('common.title_field')}</label>
             <input value={form.title} onChange={e=>set('title',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }} />
           </div>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Oportunidade *</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('contracts.field_opportunity')}</label>
             <select value={form.opportunity_id} onChange={e=>set('opportunity_id',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }}>
-              <option value="">— Selecione —</option>
+              <option value="">{t('common.select_option')}</option>
               {allOpps.map(o=><option key={o.id} value={o.id}>{o.title}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Template</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('contracts.field_template')}</label>
             <select value={form.template_id} onChange={e=>set('template_id',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }}>
-              <option value="">— Sem template —</option>
-              {(tmpls?.data||[]).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="">{t('contracts.no_template')}</option>
+              {(tmpls?.data||[]).map(tp=><option key={tp.id} value={tp.id}>{tp.name}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display:'flex', gap:8, marginTop:20, justifyContent:'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
           <button className="btn btn-primary" disabled={mut.isPending||!form.title||!form.opportunity_id}
-            onClick={()=>mut.mutate(form)}>{mut.isPending?'Gerando…':'Gerar Contrato'}</button>
+            onClick={()=>mut.mutate(form)}>
+            {mut.isPending ? t('contracts.generating') : t('contracts.generate')}
+          </button>
         </div>
       </div>
     </div>
@@ -52,6 +55,7 @@ function AddContractModal({ onClose }) {
 }
 
 export function Contracts() {
+  const { t } = useTranslation()
   const [showAdd, setShowAdd] = useState(false)
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey:['contracts'], queryFn:()=>api.get('/contracts').then(r=>r.data) })
@@ -60,19 +64,33 @@ export function Contracts() {
     onSuccess:()=>qc.invalidateQueries(['contracts'])
   })
 
+  const STATUS_LABEL = {
+    draft:     t('contracts.status_draft'),
+    sent:      t('contracts.status_sent'),
+    signed:    t('contracts.status_signed'),
+    cancelled: t('contracts.status_cancelled'),
+  }
+
+  const count = data?.data?.length || 0
+
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Contratos</h1><p className="page-sub">{data?.data?.length||0} contratos</p></div>
-        <button className="btn btn-primary" onClick={()=>setShowAdd(true)}><Plus size={15}/> Novo Contrato</button>
+        <div>
+          <h1 className="page-title">{t('contracts.title')}</h1>
+          <p className="page-sub">
+            {t(count === 1 ? 'contracts.count_one' : 'contracts.count_other', { count })}
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={()=>setShowAdd(true)}><Plus size={15}/> {t('contracts.new')}</button>
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         {isLoading
-          ? <p style={{ color:'var(--text-3)', padding:20 }}>Carregando…</p>
+          ? <p style={{ color:'var(--text-3)', padding:20 }}>{t('common.loading')}</p>
           : (data?.data||[]).length===0
           ? <div className="card" style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>
               <FileText size={40} style={{ margin:'0 auto 12px', display:'block', opacity:.2 }}/>
-              <p>Nenhum contrato ainda. Crie o primeiro!</p>
+              <p>{t('contracts.empty')}</p>
             </div>
           : (data?.data||[]).map(c=>(
             <div key={c.id} className="card" style={{ display:'flex', alignItems:'center', gap:16 }}>
@@ -89,13 +107,13 @@ export function Contracts() {
               {c.status==='draft' && (
                 <button className="btn btn-ghost" style={{ fontSize:'.8rem', padding:'6px 12px' }}
                   onClick={()=>updateStatus.mutate({id:c.id,status:'sent'})}>
-                  <Send size={13}/> Enviar
+                  <Send size={13}/> {t('contracts.send')}
                 </button>
               )}
               {c.status==='sent' && (
                 <button className="btn" style={{ fontSize:'.8rem', padding:'6px 12px', background:'rgba(16,185,129,.15)', color:'var(--success)' }}
                   onClick={()=>updateStatus.mutate({id:c.id,status:'signed'})}>
-                  <CheckCircle size={13}/> Marcar Assinado
+                  <CheckCircle size={13}/> {t('contracts.mark_signed')}
                 </button>
               )}
             </div>

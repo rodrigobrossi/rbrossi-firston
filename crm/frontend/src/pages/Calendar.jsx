@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
          isSameMonth, isSameDay, parseISO, addMonths, subMonths } from 'date-fns'
@@ -10,6 +11,7 @@ const TYPE_COLOR = { meeting:'var(--accent)', call:'var(--success)', demo:'var(-
                      follow_up:'var(--text-2)', contract:'#A78BFA', other:'var(--text-3)' }
 
 function AddEventModal({ selectedDate, onClose }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { data: contacts } = useQuery({ queryKey:['contacts'], queryFn: () => api.get('/contacts?limit=200').then(r=>r.data) })
   const [form, setForm] = useState({
@@ -24,54 +26,58 @@ function AddEventModal({ selectedDate, onClose }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
       <div className="card" style={{ width:460, padding:28 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700 }}>Novo Evento</h2>
+          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700 }}>{t('calendar.new_event')}</h2>
           <button onClick={onClose} style={{ background:'none', color:'var(--text-2)', padding:4 }}><X size={18}/></button>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Título *</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('common.title_field')}</label>
             <input value={form.title} onChange={e=>set('title',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }} />
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Início</label>
+              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('calendar.field_start')}</label>
               <input type="datetime-local" value={form.start_at} onChange={e=>set('start_at',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }} />
             </div>
             <div>
-              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Fim</label>
+              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('calendar.field_end')}</label>
               <input type="datetime-local" value={form.end_at} onChange={e=>set('end_at',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }} />
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Tipo</label>
+              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('calendar.field_type')}</label>
               <select value={form.type} onChange={e=>set('type',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }}>
-                {Object.keys(TYPE_COLOR).map(t=><option key={t} value={t}>{t}</option>)}
+                {Object.keys(TYPE_COLOR).map(tp=><option key={tp} value={tp}>{tp}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Chance de ganhar: {form.win_odds}%</label>
+              <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>
+                {t('calendar.field_win_odds', { value: form.win_odds })}
+              </label>
               <input type="range" min={0} max={100} value={form.win_odds} onChange={e=>set('win_odds',Number(e.target.value))}
                 style={{ width:'100%', accentColor:'var(--accent)' }} />
             </div>
           </div>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Contato</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('common.contact_field')}</label>
             <select value={form.contact_id} onChange={e=>set('contact_id',e.target.value)} style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem' }}>
-              <option value="">— Nenhum —</option>
+              <option value="">{t('common.none_option')}</option>
               {(contacts?.data||[]).map(c=><option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>Notas</label>
+            <label style={{ fontSize:'.75rem', color:'var(--text-2)', display:'block', marginBottom:4 }}>{t('calendar.field_notes')}</label>
             <textarea value={form.notes} onChange={e=>set('notes',e.target.value)} rows={2}
               style={{ width:'100%', padding:'8px 12px', fontSize:'.875rem', resize:'vertical' }} />
           </div>
         </div>
         <div style={{ display:'flex', gap:8, marginTop:20, justifyContent:'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
           <button className="btn btn-primary" disabled={mut.isPending || !form.title || !form.start_at || !form.end_at}
-            onClick={()=>mut.mutate(form)}>{mut.isPending?'Salvando…':'Salvar'}</button>
+            onClick={()=>mut.mutate(form)}>
+            {mut.isPending ? t('common.saving') : t('common.save')}
+          </button>
         </div>
       </div>
     </div>
@@ -79,6 +85,7 @@ function AddEventModal({ selectedDate, onClose }) {
 }
 
 export default function Calendar() {
+  const { t } = useTranslation()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
@@ -99,19 +106,21 @@ export default function Calendar() {
 
   const eventsOn = day => events.filter(ev => isSameDay(parseISO(ev.start_at), day))
 
+  const dayHeaders = t('calendar.days', { returnObjects: true })
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Calendário</h1>
+          <h1 className="page-title">{t('calendar.title')}</h1>
           <p className="page-sub">{format(current, "MMMM 'de' yyyy", { locale:ptBR })}</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-ghost" onClick={()=>setCurrent(d=>subMonths(d,1))}><ChevronLeft size={16}/></button>
-          <button className="btn btn-ghost" onClick={()=>setCurrent(new Date())}>Hoje</button>
+          <button className="btn btn-ghost" onClick={()=>setCurrent(new Date())}>{t('calendar.today')}</button>
           <button className="btn btn-ghost" onClick={()=>setCurrent(d=>addMonths(d,1))}><ChevronRight size={16}/></button>
           <button className="btn btn-primary" onClick={()=>{ setSelected(new Date()); setShowAdd(true) }}>
-            <Plus size={15}/> Novo Evento
+            <Plus size={15}/> {t('calendar.new_event')}
           </button>
         </div>
       </div>
@@ -119,7 +128,7 @@ export default function Calendar() {
       <div className="card" style={{ padding:0, overflow:'hidden' }}>
         {/* Day headers */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid var(--border)' }}>
-          {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d => (
+          {(Array.isArray(dayHeaders) ? dayHeaders : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']).map(d => (
             <div key={d} style={{ padding:'10px 0', textAlign:'center', fontSize:'.75rem', color:'var(--text-3)', fontWeight:600 }}>{d}</div>
           ))}
         </div>
@@ -158,7 +167,11 @@ export default function Calendar() {
                     {format(parseISO(ev.start_at),'HH:mm')} {ev.title}
                   </div>
                 ))}
-                {dayEvs.length > 3 && <div style={{ fontSize:'.68rem', color:'var(--text-3)', paddingLeft:2 }}>+{dayEvs.length-3} mais</div>}
+                {dayEvs.length > 3 && (
+                  <div style={{ fontSize:'.68rem', color:'var(--text-3)', paddingLeft:2 }}>
+                    {t('calendar.more', { count: dayEvs.length - 3 })}
+                  </div>
+                )}
               </div>
             )
           })}

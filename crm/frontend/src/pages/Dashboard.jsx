@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine, LabelList } from 'recharts'
 import { Users, Calendar, TrendingUp, DollarSign, ArrowUpRight } from 'lucide-react'
 import api from '../lib/api'
@@ -6,8 +7,6 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 // ── KPI card — value + sub context + optional mini fill bar ────
-// The `fill` prop (0–100) renders a colored progress line at the
-// bottom of the card, giving each metric a distinct visual weight.
 function KpiCard({ icon: Icon, label, value, sub, color = 'var(--accent)', fill }) {
   const rgb = {
     'var(--accent)':   '37,99,235',
@@ -35,7 +34,6 @@ function KpiCard({ icon: Icon, label, value, sub, color = 'var(--accent)', fill 
           <div style={{ fontSize: '.72rem', color: 'var(--text-3)', marginTop: 5 }}>{sub}</div>
         )}
       </div>
-      {/* Fill bar — encodes a percentage as a colored stripe at the bottom */}
       {fill != null && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
           background: 'var(--border)' }}>
@@ -52,6 +50,7 @@ function KpiCard({ icon: Icon, label, value, sub, color = 'var(--accent)', fill 
 
 // ── Pipeline chart tooltip ─────────────────────────────────────
 function PipelineTooltip({ active, payload }) {
+  const { t } = useTranslation()
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
@@ -70,14 +69,18 @@ function PipelineTooltip({ active, payload }) {
             R$ {Number(d.value).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
           </div>
         ) : (
-          <div style={{ color: 'var(--text-3)' }}>Sem valor registrado</div>
+          <div style={{ color: 'var(--text-3)' }}>{t('dashboard.chart_no_value')}</div>
         )}
         <div>
-          {d.count} oportunidade{d.count !== 1 ? 's' : ''}
-          {d.pct > 0 && <span style={{ color: 'var(--text-3)' }}> · {d.pct}% do funil</span>}
+          {t(d.count === 1 ? 'dashboard.chart_opps_one' : 'dashboard.chart_opps_other', { count: d.count })}
+          {d.pct > 0 && (
+            <span style={{ color: 'var(--text-3)' }}>
+              {' · '}{t('dashboard.chart_funnel_pct', { pct: d.pct })}
+            </span>
+          )}
         </div>
         {d.odds > 0 && (
-          <div style={{ color: 'var(--text-3)' }}>{Math.round(d.odds)}% win odds médio</div>
+          <div style={{ color: 'var(--text-3)' }}>{t('dashboard.chart_win_odds', { pct: Math.round(d.odds) })}</div>
         )}
       </div>
     </div>
@@ -85,8 +88,6 @@ function PipelineTooltip({ active, payload }) {
 }
 
 // ── Stage breakdown legend ─────────────────────────────────────
-// Renders one row per visible stage: color dot + label + proportional
-// mini-bar + percentage + count. Gives data perspective at a glance.
 function StageBreakdown({ chartData }) {
   if (!chartData.length) return null
   return (
@@ -99,7 +100,6 @@ function StageBreakdown({ chartData }) {
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {d.name}
           </span>
-          {/* Proportional fill bar */}
           <div style={{ flex: 1, height: 5, borderRadius: 99,
             background: 'var(--bg-hover)', overflow: 'hidden' }}>
             <div style={{
@@ -129,8 +129,6 @@ function StageBreakdown({ chartData }) {
 }
 
 // ── usePipelineChartData ───────────────────────────────────────
-// Single Source of Truth: column config drives labels/colors/order.
-// Derives percentage share per stage so bars are proportional.
 function usePipelineChartData() {
   const { data: statsData } = useQuery({
     queryKey: ['pipeline', 'stats'],
@@ -162,15 +160,12 @@ function usePipelineChartData() {
   const totalCount = raw.reduce((sum, d) => sum + d.count, 0)
   const totalValue = raw.reduce((sum, d) => sum + d.value, 0)
 
-  // avgValue: reference line drawn at the mean deal value per active stage
   const activeStages = raw.filter(d => d.count > 0).length
   const avgValue = activeStages > 1 ? Math.round(totalValue / activeStages) : 0
 
   const chartData = raw.map(d => ({
     ...d,
-    // pct = share of total deal count — used in legend + tooltip
     pct: totalCount > 0 ? Math.round((d.count / totalCount) * 100) : 0,
-    // valuePct = share of total R$ — drives bar height (naturally differs per stage)
     valuePct: totalValue > 0 ? Math.round((d.value / totalValue) * 100) : 0,
   }))
 
@@ -186,6 +181,7 @@ function usePipelineChartData() {
 
 // ── Dashboard ──────────────────────────────────────────────────
 export default function Dashboard() {
+  const { t } = useTranslation()
   const { chartData, totalCount, totalValue, avgValue, weighted, wonValue } = usePipelineChartData()
 
   const { data: contacts } = useQuery({
@@ -204,9 +200,7 @@ export default function Dashboard() {
   const totalContacts = contacts?.total ?? 0
   const nextEvents    = events?.data?.slice(0, 4) ?? []
 
-  // Conversion rate: won value vs total weighted pipeline
   const conversionPct = weighted > 0 ? Math.round((wonValue / weighted) * 100) : 0
-  // Pipeline fill: proportion of deals past qualification
   const advancedCount = chartData
     .filter(d => !['lead', 'lost'].includes(d.key))
     .reduce((s, d) => s + d.count, 0)
@@ -216,41 +210,43 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Dashboard</h1>
+          <h1 className="page-title">{t('dashboard.title')}</h1>
           <p className="page-sub">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
         </div>
       </div>
 
-      {/* KPIs — each card has a distinct secondary indicator */}
+      {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         <KpiCard
           icon={Users}
-          label="Contatos"
+          label={t('dashboard.kpi_contacts')}
           value={totalContacts}
-          sub="cadastrados no CRM"
+          sub={t('dashboard.kpi_contacts_sub')}
           color="var(--accent)"
         />
         <KpiCard
           icon={TrendingUp}
-          label="Pipeline (peso)"
+          label={t('dashboard.kpi_pipeline')}
           value={`R$ ${(weighted / 1000).toFixed(0)}k`}
-          sub={`${totalCount} oportunidade${totalCount !== 1 ? 's' : ''} no funil`}
+          sub={t(totalCount === 1 ? 'dashboard.kpi_opps_one' : 'dashboard.kpi_opps_other', { count: totalCount })}
           color="var(--warning)"
           fill={pipelineFill}
         />
         <KpiCard
           icon={DollarSign}
-          label="Receita (ganho)"
+          label={t('dashboard.kpi_revenue')}
           value={`R$ ${(wonValue / 1000).toFixed(0)}k`}
-          sub={conversionPct > 0 ? `${conversionPct}% do pipeline convertido` : 'Nenhuma conversão ainda'}
+          sub={conversionPct > 0
+            ? t('dashboard.kpi_converted', { pct: conversionPct })
+            : t('dashboard.kpi_no_conversion')}
           color="var(--success)"
           fill={conversionPct}
         />
         <KpiCard
           icon={Calendar}
-          label="Eventos (7 dias)"
+          label={t('dashboard.kpi_events')}
           value={nextEvents.length}
-          sub="próximos compromissos"
+          sub={t('dashboard.kpi_events_sub')}
           color="var(--accent)"
         />
       </div>
@@ -262,11 +258,11 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
             marginBottom: 4 }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1rem' }}>
-              Pipeline por Estágio
+              {t('dashboard.chart_title')}
             </h2>
             {totalValue > 0 && (
               <span style={{ fontSize: '.72rem', color: 'var(--text-3)' }}>
-                R$ por estágio · {totalCount} oport.
+                {t('dashboard.chart_by_stage', { count: totalCount })}
               </span>
             )}
           </div>
@@ -275,18 +271,16 @@ export default function Dashboard() {
             <BarChart data={chartData} barSize={28} margin={{ top: 18, right: 4, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fill: 'var(--text-2)', fontSize: 10 }}
                 axisLine={false} tickLine={false} />
-              {/* width=0 hides the axis visually while still applying domain for correct scaling */}
               <YAxis width={0} axisLine={false} tickLine={false} tick={false} />
               <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'rgba(255,255,255,.04)' }} />
 
-              {/* Reference line at mean deal value across active stages */}
               {avgValue > 0 && (
                 <ReferenceLine
                   y={avgValue}
                   stroke="rgba(255,255,255,.18)"
                   strokeDasharray="4 3"
                   label={{
-                    value: 'média',
+                    value: t('dashboard.chart_avg'),
                     position: 'insideTopRight',
                     fontSize: 9,
                     fill: 'var(--text-3)',
@@ -295,7 +289,6 @@ export default function Dashboard() {
                 />
               )}
 
-              {/* Bars driven by R$ share per stage — naturally differs between stages */}
               <Bar dataKey="value" radius={[5, 5, 0, 0]}>
                 <LabelList
                   dataKey="count"
@@ -310,17 +303,16 @@ export default function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
 
-          {/* Stage breakdown with proportional mini-bars */}
           <StageBreakdown chartData={chartData} />
         </div>
 
         {/* Upcoming events */}
         <div className="card fade-up-2">
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, marginBottom: 16, fontSize: '1rem' }}>
-            Próximos Eventos
+            {t('dashboard.upcoming_events')}
           </h2>
           {nextEvents.length === 0
-            ? <p style={{ color: 'var(--text-3)', fontSize: '.85rem' }}>Nenhum evento nos próximos 7 dias.</p>
+            ? <p style={{ color: 'var(--text-3)', fontSize: '.85rem' }}>{t('dashboard.no_events')}</p>
             : nextEvents.map(ev => (
               <div key={ev.id} style={{ display: 'flex', gap: 12, padding: '10px 0',
                 borderBottom: '1px solid var(--border)' }}>
@@ -353,18 +345,20 @@ export default function Dashboard() {
       {/* Recent contacts */}
       <div className="card fade-up-3">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1rem' }}>Contatos Recentes</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1rem' }}>
+            {t('dashboard.recent_contacts')}
+          </h2>
           <a href="/contacts" style={{ fontSize: '.8rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            Ver todos <ArrowUpRight size={13} />
+            {t('dashboard.view_all')} <ArrowUpRight size={13} />
           </a>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.85rem' }}>
           <thead>
             <tr style={{ color: 'var(--text-3)', fontSize: '.75rem' }}>
-              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>Nome</th>
-              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>Empresa</th>
-              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>Temperatura</th>
-              <th style={{ textAlign: 'right', padding: '0 0 10px', fontWeight: 500 }}>Score</th>
+              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>{t('dashboard.col_name')}</th>
+              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>{t('dashboard.col_company')}</th>
+              <th style={{ textAlign: 'left', padding: '0 0 10px', fontWeight: 500 }}>{t('dashboard.col_temperature')}</th>
+              <th style={{ textAlign: 'right', padding: '0 0 10px', fontWeight: 500 }}>{t('dashboard.col_score')}</th>
             </tr>
           </thead>
           <tbody>

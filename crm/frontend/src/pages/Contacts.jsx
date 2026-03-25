@@ -12,21 +12,12 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Search, Plus, X, ChevronDown, ChevronRight, Camera, MapPin, Phone, Mail, Edit2 } from 'lucide-react'
 import api from '../lib/api'
 
 // ── Constants ─────────────────────────────────────────────────
 const TEMPS = ['', 'hot', 'warm', 'cold', 'customer']
-const TEMP_LABEL = { hot: '🔥 Hot', warm: '☀️ Warm', cold: '❄️ Cold', customer: '✅ Cliente' }
-
-const SEX_OPTIONS = [
-  { value: '',             label: 'Não informado' },
-  { value: 'male',         label: 'Masculino' },
-  { value: 'female',       label: 'Feminino' },
-  { value: 'intersex',     label: 'Intersexo' },
-  { value: 'not_informed', label: 'Prefiro não informar' },
-]
-
 const CHANNELS = ['whatsapp', 'email', 'phone', 'sms']
 
 const EMPTY_FORM = {
@@ -88,7 +79,7 @@ function Avatar({ contact, size = 32 }) {
 }
 
 // ── Address input with Google Maps Autocomplete ───────────────
-function AddressInput({ value, onChange, onPlaceSelect, googleReady }) {
+function AddressInput({ value, onChange, onPlaceSelect, googleReady, placeholder }) {
   const ref   = useRef(null)
   const acRef = useRef(null)
 
@@ -112,7 +103,7 @@ function AddressInput({ value, onChange, onPlaceSelect, googleReady }) {
       ref={ref}
       value={value}
       onChange={e => onChange(e.target.value)}
-      placeholder={googleReady ? 'Digite para buscar endereço…' : 'Endereço completo'}
+      placeholder={placeholder}
       style={{ width: '100%', padding: '8px 12px', fontSize: '.875rem' }}
     />
   )
@@ -120,8 +111,17 @@ function AddressInput({ value, onChange, onPlaceSelect, googleReady }) {
 
 // ── Contact detail panel (expanded row) ──────────────────────
 function ContactDetail({ contact, onEdit, onPhotoUploaded }) {
+  const { t } = useTranslation()
   const qc      = useQueryClient()
   const fileRef = useRef(null)
+
+  const sexOptions = [
+    { value: '',             label: t('contacts.sex_not_informed') },
+    { value: 'male',         label: t('contacts.sex_male') },
+    { value: 'female',       label: t('contacts.sex_female') },
+    { value: 'intersex',     label: t('contacts.sex_intersex') },
+    { value: 'not_informed', label: t('contacts.sex_prefer_not') },
+  ]
 
   const photoMut = useMutation({
     mutationFn: (file) => {
@@ -134,12 +134,19 @@ function ContactDetail({ contact, onEdit, onPhotoUploaded }) {
     onSuccess: () => { qc.invalidateQueries(['contacts']); onPhotoUploaded?.() },
   })
 
-  const Field = ({ label, value }) => value ? (
+  const DetailField = ({ label, value }) => value ? (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: '.68rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
       <div style={{ fontSize: '.85rem', color: 'var(--text-1)', marginTop: 2 }}>{value}</div>
     </div>
   ) : null
+
+  const TEMP_LABEL = {
+    hot:      t('contacts.temp_hot'),
+    warm:     t('contacts.temp_warm'),
+    cold:     t('contacts.temp_cold'),
+    customer: t('contacts.temp_customer'),
+  }
 
   return (
     <div style={{
@@ -154,7 +161,7 @@ function ContactDetail({ contact, onEdit, onPhotoUploaded }) {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={photoMut.isPending}
-            title="Trocar foto"
+            title={t('contacts.change_photo_btn')}
             style={{
               position: 'absolute', bottom: -4, right: -4, width: 26, height: 26,
               borderRadius: '50%', background: 'var(--accent)', border: '2px solid var(--bg-card)',
@@ -165,31 +172,31 @@ function ContactDetail({ contact, onEdit, onPhotoUploaded }) {
         </div>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={e => e.target.files[0] && photoMut.mutate(e.target.files[0])} />
-        {photoMut.isPending && <span style={{ fontSize: '.7rem', color: 'var(--text-3)' }}>Enviando…</span>}
-        {photoMut.isError   && <span style={{ fontSize: '.7rem', color: 'var(--danger)' }}>Erro no upload</span>}
+        {photoMut.isPending && <span style={{ fontSize: '.7rem', color: 'var(--text-3)' }}>{t('common.uploading')}</span>}
+        {photoMut.isError   && <span style={{ fontSize: '.7rem', color: 'var(--danger)' }}>{t('common.upload_error')}</span>}
         <button className="btn btn-ghost" style={{ fontSize: '.75rem', padding: '5px 12px' }} onClick={onEdit}>
-          <Edit2 size={12} /> Editar
+          <Edit2 size={12} /> {t('common.edit')}
         </button>
       </div>
 
       {/* Identity */}
       <div>
         <div style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase',
-          letterSpacing: '.08em', marginBottom: 10 }}>Identidade</div>
-        <Field label="Nome completo" value={[contact.first_name, contact.last_name].filter(Boolean).join(' ')} />
-        <Field label="Chamado(a) como" value={contact.preferred_name} />
-        <Field label="Data de nascimento" value={contact.date_of_birth} />
-        <Field label="Sexo" value={SEX_OPTIONS.find(o => o.value === (contact.sex || ''))?.label} />
-        <Field label="Gênero" value={contact.gender} />
-        <Field label="CPF" value={contact.cpf ? '••• ocultado (criptografado) •••' : null} />
-        <Field label="Cargo" value={contact.title} />
-        <Field label="Empresa" value={contact.company_name} />
+          letterSpacing: '.08em', marginBottom: 10 }}>{t('contacts.detail_identity')}</div>
+        <DetailField label={t('contacts.detail_full_name')} value={[contact.first_name, contact.last_name].filter(Boolean).join(' ')} />
+        <DetailField label={t('contacts.detail_preferred_as')} value={contact.preferred_name} />
+        <DetailField label={t('contacts.detail_dob')} value={contact.date_of_birth} />
+        <DetailField label={t('contacts.detail_sex')} value={sexOptions.find(o => o.value === (contact.sex || ''))?.label} />
+        <DetailField label={t('contacts.detail_gender')} value={contact.gender} />
+        <DetailField label={t('contacts.detail_cpf')} value={contact.cpf ? t('contacts.cpf_hidden') : null} />
+        <DetailField label={t('contacts.detail_title')} value={contact.title} />
+        <DetailField label={t('contacts.detail_company')} value={contact.company_name} />
       </div>
 
       {/* Contact + location */}
       <div>
         <div style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase',
-          letterSpacing: '.08em', marginBottom: 10 }}>Contato & Localização</div>
+          letterSpacing: '.08em', marginBottom: 10 }}>{t('contacts.detail_contact_location')}</div>
         {contact.email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
             <Mail size={13} color="var(--text-3)" />
@@ -231,9 +238,6 @@ function ContactDetail({ contact, onEdit, onPhotoUploaded }) {
 }
 
 // ── Modal helpers (defined OUTSIDE ContactModal to preserve identity) ────
-// Defining these inside the component causes React to create a new component
-// type on every render, unmounting inputs and losing focus after each keystroke.
-
 const MODAL_INPUT  = { width: '100%', padding: '8px 12px', fontSize: '.875rem' }
 const MODAL_LABEL  = { fontSize: '.75rem', color: 'var(--text-2)', display: 'block', marginBottom: 4 }
 
@@ -251,7 +255,7 @@ function Section({ title, children }) {
   )
 }
 
-function Field({ label, type = 'text', full = false, value, onChange, error }) {
+function ModalField({ label, type = 'text', full = false, value, onChange, error }) {
   return (
     <div style={full ? { gridColumn: '1 / -1' } : {}}>
       <label style={MODAL_LABEL}>{label}</label>
@@ -313,9 +317,25 @@ function FieldError({ error, children }) {
 
 // ── Add / Edit modal ──────────────────────────────────────────
 function ContactModal({ initial, onClose }) {
+  const { t } = useTranslation()
   const qc         = useQueryClient()
   const isEdit     = !!initial?.id
   const googleReady = useGoogleMaps()
+
+  const SEX_OPTIONS = [
+    { value: '',             label: t('contacts.sex_not_informed') },
+    { value: 'male',         label: t('contacts.sex_male') },
+    { value: 'female',       label: t('contacts.sex_female') },
+    { value: 'intersex',     label: t('contacts.sex_intersex') },
+    { value: 'not_informed', label: t('contacts.sex_prefer_not') },
+  ]
+
+  const TEMP_LABEL = {
+    hot:      t('contacts.temp_hot'),
+    warm:     t('contacts.temp_warm'),
+    cold:     t('contacts.temp_cold'),
+    customer: t('contacts.temp_customer'),
+  }
 
   const [form, setForm] = useState(() => isEdit ? {
     first_name:        initial.first_name        || '',
@@ -353,21 +373,21 @@ function ContactModal({ initial, onClose }) {
   const validate = (f) => {
     const e = {}
     if (!f.first_name?.trim())
-      e.first_name = 'Nome é obrigatório'
+      e.first_name = t('contacts.val_first_name')
     if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email))
-      e.email = 'E-mail inválido'
+      e.email = t('contacts.val_email')
     if (f.phone && f.phone.replace(/\D/g, '').length < 8)
-      e.phone = 'Telefone deve ter ao menos 8 dígitos'
+      e.phone = t('contacts.val_phone')
     if (f.phone2 && f.phone2.replace(/\D/g, '').length < 8)
-      e.phone2 = 'Telefone deve ter ao menos 8 dígitos'
+      e.phone2 = t('contacts.val_phone')
     if (f.cpf && f.cpf.replace(/\D/g, '').length !== 11)
-      e.cpf = 'CPF deve ter 11 dígitos'
+      e.cpf = t('contacts.val_cpf')
     if (f.linkedin_url && !/^https?:\/\/.+/.test(f.linkedin_url))
-      e.linkedin_url = 'URL deve começar com http:// ou https://'
+      e.linkedin_url = t('contacts.val_linkedin')
     if (f.budget_brl !== '' && f.budget_brl !== null && Number(f.budget_brl) < 0)
-      e.budget_brl = 'Budget não pode ser negativo'
+      e.budget_brl = t('contacts.val_budget')
     if (f.date_of_birth && new Date(f.date_of_birth) > new Date())
-      e.date_of_birth = 'Data de nascimento não pode ser no futuro'
+      e.date_of_birth = t('contacts.val_dob')
     return e
   }
 
@@ -386,7 +406,7 @@ function ContactModal({ initial, onClose }) {
         fd.append('photo', photoFile)
         await api.post(`/contacts/${id}/photo`, fd, {
           headers: { 'Content-Type': 'multipart/form-data' },
-        }).catch(() => {}) // photo upload failure is non-fatal
+        }).catch(() => {})
       }
       qc.invalidateQueries(['contacts'])
       onClose()
@@ -410,7 +430,7 @@ function ContactModal({ initial, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '18px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem' }}>
-            {isEdit ? 'Editar Contato' : 'Novo Contato'}
+            {isEdit ? t('contacts.edit') : t('contacts.new')}
           </h2>
           <button onClick={onClose} style={{ background: 'none', color: 'var(--text-2)', padding: 4 }}>
             <X size={18} />
@@ -443,50 +463,50 @@ function ContactModal({ initial, onClose }) {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '.875rem', fontWeight: 500 }}>Foto do contato</div>
-              <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginTop: 2 }}>JPG, PNG ou WebP · máx. 5 MB</div>
+              <div style={{ fontSize: '.875rem', fontWeight: 500 }}>{t('contacts.photo_label')}</div>
+              <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginTop: 2 }}>{t('contacts.photo_hint')}</div>
               <button className="btn btn-ghost" style={{ marginTop: 6, fontSize: '.75rem', padding: '4px 10px' }}
                 type="button" onClick={() => fileRef.current?.click()}>
-                {photoPreview ? 'Trocar foto' : 'Selecionar foto'}
+                {photoPreview ? t('contacts.change_photo') : t('contacts.select_photo')}
               </button>
             </div>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
               onChange={e => handlePhotoSelect(e.target.files[0])} />
           </div>
 
-          {/* Identidade */}
-          <Section title="Identidade">
-            <Field label="Nome *"            value={form.first_name}    onChange={e => set('first_name', e.target.value)}    error={errors.first_name} />
-            <Field label="Sobrenome"          value={form.last_name}     onChange={e => set('last_name', e.target.value)} />
-            <Field label="Chamado(a) como"    value={form.preferred_name} onChange={e => set('preferred_name', e.target.value)} />
-            <Field label="Data de nascimento" type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} error={errors.date_of_birth} />
+          {/* Identity */}
+          <Section title={t('contacts.section_identity')}>
+            <ModalField label={t('contacts.field_first_name')}    value={form.first_name}    onChange={e => set('first_name', e.target.value)}    error={errors.first_name} />
+            <ModalField label={t('contacts.field_last_name')}     value={form.last_name}     onChange={e => set('last_name', e.target.value)} />
+            <ModalField label={t('contacts.field_preferred_name')} value={form.preferred_name} onChange={e => set('preferred_name', e.target.value)} />
+            <ModalField label={t('contacts.field_dob')} type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} error={errors.date_of_birth} />
             <div>
-              <label style={MODAL_LABEL}>Sexo biológico</label>
+              <label style={MODAL_LABEL}>{t('contacts.field_sex')}</label>
               <select value={form.sex} onChange={e => set('sex', e.target.value)} style={MODAL_INPUT}>
                 {SEX_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <Field label="Identidade de gênero" value={form.gender} onChange={e => set('gender', e.target.value)} />
-            <Field label="CPF (criptografado)"   value={form.cpf}    onChange={e => set('cpf', e.target.value)} error={errors.cpf} />
+            <ModalField label={t('contacts.field_gender')} value={form.gender} onChange={e => set('gender', e.target.value)} />
+            <ModalField label={t('contacts.field_cpf')}    value={form.cpf}    onChange={e => set('cpf', e.target.value)} error={errors.cpf} />
           </Section>
 
-          {/* Contato */}
-          <Section title="Contato">
-            <Field label="E-mail"     type="email" value={form.email}  onChange={e => set('email', e.target.value)}  error={errors.email} />
-            <Field label="Telefone 1"              value={form.phone}  onChange={e => set('phone', e.target.value)}  error={errors.phone} />
-            <Field label="Telefone 2"              value={form.phone2} onChange={e => set('phone2', e.target.value)} error={errors.phone2} />
+          {/* Contact */}
+          <Section title={t('contacts.section_contact')}>
+            <ModalField label={t('contacts.field_email')}  type="email" value={form.email}  onChange={e => set('email', e.target.value)}  error={errors.email} />
+            <ModalField label={t('contacts.field_phone1')}             value={form.phone}  onChange={e => set('phone', e.target.value)}  error={errors.phone} />
+            <ModalField label={t('contacts.field_phone2')}             value={form.phone2} onChange={e => set('phone2', e.target.value)} error={errors.phone2} />
             <div>
-              <label style={MODAL_LABEL}>Canal preferido</label>
+              <label style={MODAL_LABEL}>{t('contacts.field_channel')}</label>
               <select value={form.preferred_channel} onChange={e => set('preferred_channel', e.target.value)} style={MODAL_INPUT}>
                 {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </Section>
 
-          {/* Localização */}
-          <Section title="Localização">
+          {/* Location */}
+          <Section title={t('contacts.section_location')}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={MODAL_LABEL}>Endereço</label>
+              <label style={MODAL_LABEL}>{t('contacts.field_address')}</label>
               <FieldError error={errors.address}>
                 <AddressInput
                   value={form.address}
@@ -494,6 +514,7 @@ function ContactModal({ initial, onClose }) {
                   onPlaceSelect={({ address, address_lat, address_lng }) =>
                     setForm(f => ({ ...f, address, address_lat, address_lng }))}
                   googleReady={googleReady}
+                  placeholder={googleReady ? t('contacts.address_gmaps') : t('contacts.address_plain')}
                 />
               </FieldError>
               {!import.meta.env.VITE_GOOGLE_MAPS_KEY && (
@@ -505,16 +526,16 @@ function ContactModal({ initial, onClose }) {
           </Section>
 
           {/* CRM */}
-          <Section title="CRM">
-            <Field label="Cargo"        value={form.title}        onChange={e => set('title', e.target.value)} />
-            <Field label="Setor"        value={form.sector}       onChange={e => set('sector', e.target.value)} />
-            <Field label="LinkedIn URL" value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} full error={errors.linkedin_url} />
-            <Field label="Budget (R$)"  value={form.budget_brl}   onChange={e => set('budget_brl', e.target.value)} type="number" error={errors.budget_brl} />
+          <Section title={t('contacts.section_crm')}>
+            <ModalField label={t('contacts.field_title')}   value={form.title}        onChange={e => set('title', e.target.value)} />
+            <ModalField label={t('contacts.field_sector')}  value={form.sector}       onChange={e => set('sector', e.target.value)} />
+            <ModalField label={t('contacts.field_linkedin')} value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} full error={errors.linkedin_url} />
+            <ModalField label={t('contacts.field_budget')}  value={form.budget_brl}   onChange={e => set('budget_brl', e.target.value)} type="number" error={errors.budget_brl} />
             <div>
-              <label style={MODAL_LABEL}>Temperatura</label>
+              <label style={MODAL_LABEL}>{t('contacts.field_temperature')}</label>
               <select value={form.temperature} onChange={e => set('temperature', e.target.value)} style={MODAL_INPUT}>
-                {['hot', 'warm', 'cold', 'customer'].map(t => (
-                  <option key={t} value={t}>{TEMP_LABEL[t]}</option>
+                {['hot', 'warm', 'cold', 'customer'].map(temp => (
+                  <option key={temp} value={temp}>{TEMP_LABEL[temp]}</option>
                 ))}
               </select>
             </div>
@@ -526,17 +547,17 @@ function ContactModal({ initial, onClose }) {
           padding: '16px 24px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           {saveMut.error && (
             <span style={{ color: 'var(--danger)', fontSize: '.8rem', alignSelf: 'center', marginRight: 'auto' }}>
-              {saveMut.error.response?.data?.error || 'Erro ao salvar'}
+              {saveMut.error.response?.data?.error || t('common.error_save')}
             </span>
           )}
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
           <button className="btn btn-primary" disabled={saveMut.isPending}
             onClick={() => {
               const e = validate(form)
               if (Object.keys(e).length) { setErrors(e); return }
               saveMut.mutate(form)
             }}>
-            {saveMut.isPending ? 'Salvando…' : isEdit ? 'Atualizar' : 'Criar contato'}
+            {saveMut.isPending ? t('common.saving') : isEdit ? t('contacts.update_btn') : t('contacts.create_btn')}
           </button>
         </div>
       </div>
@@ -546,11 +567,19 @@ function ContactModal({ initial, onClose }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function Contacts() {
+  const { t } = useTranslation()
   const [q, setQ]                   = useState('')
   const [temp, setTemp]             = useState('')
   const [showAdd, setShowAdd]       = useState(false)
   const [expandedId, setExpanded]   = useState(null)
   const [editContact, setEditContact] = useState(null)
+
+  const TEMP_LABEL = {
+    hot:      t('contacts.temp_hot'),
+    warm:     t('contacts.temp_warm'),
+    cold:     t('contacts.temp_cold'),
+    customer: t('contacts.temp_customer'),
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', temp],
@@ -564,15 +593,26 @@ export default function Contacts() {
 
   const toggle = (id) => setExpanded(prev => prev === id ? null : id)
 
+  const TABLE_HEADERS = [
+    t('contacts.col_contact'),
+    t('contacts.col_company'),
+    t('contacts.col_phones'),
+    t('contacts.col_channel'),
+    t('contacts.col_temperature'),
+    t('contacts.col_score'),
+  ]
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Contatos</h1>
-          <p className="page-sub">{data?.total || 0} contatos</p>
+          <h1 className="page-title">{t('contacts.title')}</h1>
+          <p className="page-sub">
+            {t((data?.total || 0) === 1 ? 'contacts.count_one' : 'contacts.count_other', { count: data?.total || 0 })}
+          </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
-          <Plus size={15} /> Novo Contato
+          <Plus size={15} /> {t('contacts.new')}
         </button>
       </div>
 
@@ -580,13 +620,13 @@ export default function Contacts() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, maxWidth: 340 }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Nome, e-mail, telefone…"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t('contacts.search_placeholder')}
             style={{ width: '100%', padding: '8px 12px 8px 32px', fontSize: '.875rem' }} />
         </div>
-        {TEMPS.map(t => (
-          <button key={t} className={`btn ${temp === t ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ fontSize: '.8rem', padding: '7px 14px' }} onClick={() => setTemp(t)}>
-            {t ? TEMP_LABEL[t] : 'Todos'}
+        {TEMPS.map(tempVal => (
+          <button key={tempVal} className={`btn ${temp === tempVal ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ fontSize: '.8rem', padding: '7px 14px' }} onClick={() => setTemp(tempVal)}>
+            {tempVal ? TEMP_LABEL[tempVal] : t('contacts.filter_all')}
           </button>
         ))}
       </div>
@@ -597,16 +637,16 @@ export default function Contacts() {
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-3)', fontSize: '.75rem' }}>
               <th style={{ width: 36 }} />
-              {['Contato', 'Empresa', 'Telefones', 'Canal', 'Temperatura', 'Score'].map(h => (
+              {TABLE_HEADERS.map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>{t('common.loading')}</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum contato encontrado.</td></tr>
+              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>{t('contacts.none_found')}</td></tr>
             ) : filtered.flatMap(c => {
               const isOpen = expandedId === c.id
               return [

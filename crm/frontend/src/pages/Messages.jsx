@@ -1,16 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Send, MessageSquare } from 'lucide-react'
 import api from '../lib/api'
 
 function StressGauge({ score }) {
+  const { t } = useTranslation()
   if (score == null) return null
   const color = score < 20 ? 'var(--stress-calm)' : score < 40 ? 'var(--stress-mild)'
               : score < 65 ? 'var(--stress-tense)' : score < 85 ? 'var(--stress-high)' : 'var(--stress-critical)'
-  const label = score < 20 ? 'Calmo' : score < 40 ? 'Leve tensão' : score < 65 ? 'Tenso' : score < 85 ? 'Alto estresse' : 'Crítico'
+  const label = score < 20 ? t('messages.stress_calm')
+              : score < 40 ? t('messages.stress_mild')
+              : score < 65 ? t('messages.stress_tense')
+              : score < 85 ? t('messages.stress_high')
+              : t('messages.stress_critical')
   return (
     <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'var(--bg)', borderRadius:8, border:'1px solid var(--border)' }}>
-      <span style={{ fontSize:'.75rem', color:'var(--text-2)' }}>Estresse</span>
+      <span style={{ fontSize:'.75rem', color:'var(--text-2)' }}>{t('messages.stress')}</span>
       <div className="stress-bar" style={{ flex:1 }}>
         <div className="stress-fill" style={{ width:`${score}%`, background:color }} />
       </div>
@@ -22,6 +28,7 @@ function StressGauge({ score }) {
 }
 
 function ChatPanel({ conv }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [text, setText] = useState('')
   const [stress, setStress] = useState(null)
@@ -47,7 +54,6 @@ function ChatPanel({ conv }) {
   async function analyzeAndSend(e) {
     e.preventDefault()
     if (!text.trim()) return
-    // Analyze before sending
     try {
       const { data } = await api.post('/sentiment/analyze', { text })
       setStress(data.stress_score)
@@ -88,7 +94,7 @@ function ChatPanel({ conv }) {
               {m.body}
               {m.stress_level != null && m.direction==='in' && (
                 <div style={{ fontSize:'.65rem', marginTop:4, opacity:.6 }}>
-                  estresse: {Math.round(m.stress_level)}
+                  {t('messages.stress_level', { level: Math.round(m.stress_level) })}
                 </div>
               )}
             </div>
@@ -101,7 +107,7 @@ function ChatPanel({ conv }) {
       <form onSubmit={analyzeAndSend} style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
         <input
           value={text} onChange={e=>setText(e.target.value)}
-          placeholder="Digite a mensagem…"
+          placeholder={t('messages.type_message')}
           style={{ flex:1, padding:'10px 14px', fontSize:'.875rem', borderRadius:99 }}
         />
         <button type="submit" className="btn btn-primary"
@@ -115,6 +121,7 @@ function ChatPanel({ conv }) {
 }
 
 export default function Messages() {
+  const { t } = useTranslation()
   const [activeConv, setActiveConv] = useState(null)
 
   const { data, isLoading } = useQuery({ queryKey:['conversations'], queryFn:()=>api.get('/conversations').then(r=>r.data), refetchInterval:10000 })
@@ -125,14 +132,14 @@ export default function Messages() {
       {/* Sidebar */}
       <div style={{ width:280, borderRight:'1px solid var(--border)', overflowY:'auto', flexShrink:0 }}>
         <div style={{ padding:'16px 16px 12px', borderBottom:'1px solid var(--border)' }}>
-          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'.95rem' }}>Mensagens</h2>
+          <h2 style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'.95rem' }}>{t('messages.title')}</h2>
         </div>
         {isLoading
-          ? <p style={{ padding:16, color:'var(--text-3)', fontSize:'.85rem' }}>Carregando…</p>
+          ? <p style={{ padding:16, color:'var(--text-3)', fontSize:'.85rem' }}>{t('common.loading')}</p>
           : convs.length === 0
           ? <div style={{ padding:24, textAlign:'center', color:'var(--text-3)' }}>
               <MessageSquare size={32} style={{ margin:'0 auto 8px', display:'block', opacity:.3 }} />
-              <p style={{ fontSize:'.85rem' }}>Sem conversas ainda.</p>
+              <p style={{ fontSize:'.85rem' }}>{t('messages.no_conversations')}</p>
             </div>
           : convs.map(c => (
             <div key={c.id} onClick={()=>setActiveConv(c)}
@@ -147,10 +154,10 @@ export default function Messages() {
                 <span style={{ fontSize:'.7rem', padding:'1px 7px', borderRadius:99, background:'var(--bg-hover)', color:'var(--text-2)' }}>{c.channel}</span>
               </div>
               <p style={{ fontSize:'.78rem', color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {c.last_message || 'Nenhuma mensagem'}
+                {c.last_message || t('messages.no_message')}
               </p>
               {c.stress_level > 50 && (
-                <div style={{ fontSize:'.7rem', color:'var(--danger)', marginTop:4 }}>⚠ Estresse alto</div>
+                <div style={{ fontSize:'.7rem', color:'var(--danger)', marginTop:4 }}>{t('messages.high_stress_warning')}</div>
               )}
             </div>
           ))
@@ -164,7 +171,7 @@ export default function Messages() {
           : (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', color:'var(--text-3)' }}>
               <MessageSquare size={48} style={{ marginBottom:12, opacity:.2 }} />
-              <p>Selecione uma conversa</p>
+              <p>{t('messages.select_conversation')}</p>
             </div>
           )
         }
